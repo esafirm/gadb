@@ -17,6 +17,7 @@ package cmd
 import (
 	"fmt"
 	"os"
+	"os/exec"
 
 	homedir "github.com/mitchellh/go-homedir"
 	"github.com/spf13/cobra"
@@ -40,11 +41,29 @@ to quickly create a Cobra application.`,
 	//	Run: func(cmd *cobra.Command, args []string) { },
 }
 
+func checkCommandAvailable(arg string) bool {
+	for _, c := range rootCmd.Commands() {
+		if arg == c.Name() {
+			return true
+		}
+	}
+	return false
+}
+
 // Execute adds all child commands to the root command and sets flags appropriately.
 // This is called by main.main(). It only needs to happen once to the rootCmd.
 func Execute() {
-	if err := rootCmd.Execute(); err != nil {
-		fmt.Println(err)
+	isCommandAvailable := checkCommandAvailable(os.Args[1])
+	if isCommandAvailable {
+		if err := rootCmd.Execute(); err != nil {
+			fmt.Println(err)
+			os.Exit(1)
+		}
+	} else {
+		params := os.Args[1:]
+		output, _ := exec.Command("adb", params...).CombinedOutput()
+		
+		fmt.Println(string(output))
 		os.Exit(1)
 	}
 }
