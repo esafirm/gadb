@@ -5,7 +5,7 @@ import (
 	"strings"
 )
 
-func main() {
+func notmain() {
 	text := `output adb: failed to install /Users/esafirm/Downloads/sibalec_debug_1029.apk: Failure [INSTALL_FAILED_ALREADY_EXISTS: Attempt to re-install          sibalecx.android without first uninstalling.]`
 	var isAlreadyExistProblem = strings.Contains(text, "ALREADY_EXISTS")
 	var index = strings.Index(text, "re-install") + len("re-install")

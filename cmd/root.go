@@ -41,9 +41,14 @@ to quickly create a Cobra application.`,
 	//	Run: func(cmd *cobra.Command, args []string) { },
 }
 
-func checkCommandAvailable(arg string) bool {
+func checkCommandAvailable() bool {
+	if len(os.Args) == 1 {
+		return false
+	}
+
+	firstArg := os.Args[1]
 	for _, c := range rootCmd.Commands() {
-		if arg == c.Name() {
+		if firstArg == c.Name() {
 			return true
 		}
 	}
@@ -53,7 +58,7 @@ func checkCommandAvailable(arg string) bool {
 // Execute adds all child commands to the root command and sets flags appropriately.
 // This is called by main.main(). It only needs to happen once to the rootCmd.
 func Execute() {
-	isCommandAvailable := checkCommandAvailable(os.Args[1])
+	isCommandAvailable := checkCommandAvailable()
 	if isCommandAvailable {
 		if err := rootCmd.Execute(); err != nil {
 			fmt.Println(err)
@@ -62,7 +67,7 @@ func Execute() {
 	} else {
 		params := os.Args[1:]
 		output, _ := exec.Command("adb", params...).CombinedOutput()
-		
+
 		fmt.Println(string(output))
 		os.Exit(1)
 	}
