@@ -23,13 +23,10 @@ import (
 
 var avdsCmd = &cobra.Command{
 	Use:   "avds",
-	Short: "A brief description of your command",
-	Long: `A longer description that spans multiple lines and likely contains examples
-and usage of using your command. For example:
-
-Cobra is a CLI library for Go that empowers applications.
-This application is a tool to generate the needed files
-to quickly create a Cobra application.`,
+	Short: "List and run AVD",
+	Long: `Usage:
+	gadb avds				List AVD(s)
+	gabd avds <emulator name>		Run AVD`,
 	Run: func(cmd *cobra.Command, args []string) {
 		if len(args) == 0 {
 			listAvds()
