@@ -43,7 +43,7 @@ to quickly create a Cobra application.`,
 
 func checkCommandAvailable() bool {
 	if len(os.Args) == 1 {
-		return false
+		return true
 	}
 
 	firstArg := os.Args[1]
@@ -68,7 +68,11 @@ func Execute() {
 		params := os.Args[1:]
 		output, _ := exec.Command("adb", params...).CombinedOutput()
 
-		fmt.Println(string(output))
+		if params[0] == "shell" && len(params) == 1 {
+			fmt.Println("use adb shell for this")
+		} else {
+			fmt.Println(string(output))
+		}
 		os.Exit(1)
 	}
 }
