@@ -18,4 +18,4 @@ For example you can get the list of connected android devices by using `gadb dev
 
 ## License
 
-MIT @ Esa Firman
+Apache 2 @ Esa Firman
