@@ -17,9 +17,9 @@ package cmd
 import (
 	"fmt"
 	"os"
-	"os/exec"
 	"strings"
 
+	adb "github.com/esafirm/gadb/adb"
 	"github.com/spf13/cobra"
 )
 
@@ -46,9 +46,7 @@ func showHelpAndExit(cmd *cobra.Command, errorMsg string) {
 }
 
 func runCommand(apkPath string) {
-	output, err := exec.Command("adb", "install", apkPath).CombinedOutput()
-
-	fmt.Printf("output %s\n", output)
+	output, err := adb.Install(apkPath)
 
 	if err != nil {
 		canRecover := recoverError(string(output))
@@ -76,9 +74,7 @@ func recoverError(text string) bool {
 
 func uninstall(packageName string) {
 	fmt.Printf("Uninstalling %s ~\n", packageName)
-
-	output, _ := exec.Command("adb", "uninstall", packageName).CombinedOutput()
-	fmt.Println(string(output))
+	adb.Uninstall(packageName)
 }
 
 func init() {
