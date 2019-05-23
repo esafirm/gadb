@@ -15,6 +15,7 @@ For example you can get the list of connected android devices by using `gadb dev
 - Automatically uninstall and install if `adb install` return `ALREADY_EXISTS` error 
 - List available emulators
 - Run emulators 
+- Toggle wait for debugger status
 
 ## License
 
