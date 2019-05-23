@@ -19,8 +19,8 @@ import (
 	"os"
 	"strings"
 
-	adb "github.com/esafirm/gadb/adb"
 	"github.com/spf13/cobra"
+	adb "github.com/esafirm/gadb/adb"
 )
 
 // installCmd represents the install command
@@ -46,10 +46,10 @@ func showHelpAndExit(cmd *cobra.Command, errorMsg string) {
 }
 
 func runCommand(apkPath string) {
-	output, err := adb.Install(apkPath)
+	comamndReturn := adb.Install(apkPath)
 
-	if err != nil {
-		canRecover := recoverError(string(output))
+	if comamndReturn.Error != nil {
+		canRecover := recoverError(string(comamndReturn.Output))
 		if canRecover {
 			runCommand(apkPath)
 		}
