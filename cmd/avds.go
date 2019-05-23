@@ -22,11 +22,8 @@ import (
 )
 
 var avdsCmd = &cobra.Command{
-	Use:   "avds",
-	Short: "List and run AVD",
-	Long: `Usage:
-	gadb avds				List AVD(s)
-	gabd avds <emulator name>		Run AVD`,
+	Use: "avds [emulator name]",
+	Short: "List all available AVD(s) and run it",
 	Run: func(cmd *cobra.Command, args []string) {
 		if len(args) == 0 {
 			listAvds()
