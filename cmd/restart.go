@@ -19,16 +19,23 @@ import (
 	"github.com/spf13/cobra"
 )
 
+var clearData bool
+
 // restartCmd represents the restart command
 var restartCmd = &cobra.Command{
-	Use:   "restart",
+	Use:   "restart [package] [flags]",
 	Args:  cobra.MinimumNArgs(1),
-	Short: "restart [package]",
+	Short: "Restart application",
 	Run: func(cmd *cobra.Command, args []string) {
-		adb.Restart(args[0])
+		packageName := args[0]
+		if clearData {
+			adb.ClearData(packageName)
+		}
+		adb.Restart(packageName)
 	},
 }
 
 func init() {
 	rootCmd.AddCommand(restartCmd)
+	restartCmd.Flags().BoolVarP(&clearData, "clear", "c", false, "Restart and clear application data")
 }
