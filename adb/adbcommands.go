@@ -61,3 +61,9 @@ func Restart(packageName string) CommandReturn {
 	}
 	return Start(packageName)
 }
+
+// ClearData clear all application data in device storage
+func ClearData(packageName string) CommandReturn {
+	return runWithPrint("adb", "shell", "pm", "clear", packageName)
+}
+
