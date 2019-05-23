@@ -42,7 +42,9 @@ $ gadb debug --clear
 
 ### install
 
-Install apk to connected devices. Please note this command will automatically uninstall and install if `adb install` return `ALREADY_EXISTS` error 
+Install apk to connected devices.
+
+> This command will automatically uninstall and install if `adb install` return `ALREADY_EXISTS` error 
 
 ```shell
 $ gadb install [apk_path]
