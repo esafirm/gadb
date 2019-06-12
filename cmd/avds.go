@@ -15,38 +15,20 @@
 package cmd
 
 import (
-	"fmt"
-	"os/exec"
-
+	adb "github.com/esafirm/gadb/adb"
 	"github.com/spf13/cobra"
 )
 
 var avdsCmd = &cobra.Command{
-	Use: "avds [emulator name]",
+	Use:   "avds [emulator name]",
 	Short: "List all available AVD(s) and run it",
 	Run: func(cmd *cobra.Command, args []string) {
 		if len(args) == 0 {
-			listAvds()
+			adb.AvdList()
 		} else {
-			runAvd(args[0])
+			adb.AvdRun(args[0])
 		}
 	},
-}
-
-func runAvd(emulatorName string) {
-	cmd := exec.Command("emulator", "@"+emulatorName)
-	cmd.Start()
-}
-
-func listAvds() {
-	runCommandWithOutput("emulator", "-list-avds")
-}
-
-func runCommandWithOutput(name string, arg ...string) {
-	output, err := exec.Command(name, arg...).CombinedOutput()
-	if err == nil {
-		fmt.Println(string(output))
-	}
 }
 
 func init() {

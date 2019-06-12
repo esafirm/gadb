@@ -19,14 +19,15 @@ import (
 	"os"
 	"strings"
 
-	"github.com/spf13/cobra"
 	adb "github.com/esafirm/gadb/adb"
+	pui "github.com/manifoldco/promptui"
+	"github.com/spf13/cobra"
 )
 
 // installCmd represents the install command
 var installCmd = &cobra.Command{
-	Use:   "install [apk_path]",
-	Long:  `Install APK to single or multiple`,
+	Use:  "install [apk_path]",
+	Long: `Install APK to single or multiple`,
 	Run: func(cmd *cobra.Command, args []string) {
 		if len(args) == 0 {
 			showHelpAndExit(cmd, "APK path is required")
@@ -48,14 +49,65 @@ func runCommand(apkPath string) {
 	comamndReturn := adb.Install(apkPath)
 
 	if comamndReturn.Error != nil {
-		canRecover := recoverError(string(comamndReturn.Output))
-		if canRecover {
+		output := string(comamndReturn.Output)
+		if canRecoverAlreadyExist(output) {
 			runCommand(apkPath)
+		}
+		if shouldShowDevicePicker(output) {
+			showDevicePicker(apkPath)
 		}
 	}
 }
 
-func recoverError(text string) bool {
+func showDevicePicker(apkPath string) {
+	prompt := pui.Select{
+		Label: "Select Target",
+		Items: getDeviceChoice(),
+	}
+
+	_, result, err := prompt.Run()
+
+	if err != nil {
+		fmt.Printf("Prompt failed %v\n", err)
+		return
+	}
+
+	deviceID := strings.Split(result, "\t")[0]
+
+	fmt.Println("installing to " + deviceID)
+	commandReturn := adb.InstallTo(deviceID, apkPath)
+
+	fmt.Println(string(commandReturn.Output))
+}
+
+func getDeviceChoice() []string {
+	rawList := adb.ConnectedDevices()
+	arrayOfChoice := strings.Split(string(rawList.Output), "\n")
+	choiceSize := len(arrayOfChoice)
+
+	if choiceSize == 1 {
+		return []string{}
+	}
+
+	deviceChoice := []string{}
+	for i, v := range arrayOfChoice {
+		if i == 0 {
+			continue
+		}
+		if len(strings.TrimSpace(v)) == 0 {
+			continue
+		}
+		deviceChoice = append(deviceChoice, v)
+	}
+
+	return deviceChoice
+}
+
+func shouldShowDevicePicker(output string) bool {
+	return strings.Contains(output, "more than one device/emulator")
+}
+
+func canRecoverAlreadyExist(text string) bool {
 	isAlreadyExistProblem := strings.Contains(text, "ALREADY_EXISTS")
 
 	if isAlreadyExistProblem {
@@ -78,14 +130,4 @@ func uninstall(packageName string) {
 
 func init() {
 	rootCmd.AddCommand(installCmd)
-
-	// Here you will define your flags and configuration settings.
-
-	// Cobra supports Persistent Flags which will work for this command
-	// and all subcommands, e.g.:
-	// installCmd.PersistentFlags().String("foo", "", "A help for foo")
-
-	// Cobra supports local flags which will only run when this command
-	// is called directly, e.g.:
-	// installCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
 }

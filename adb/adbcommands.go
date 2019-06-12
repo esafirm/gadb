@@ -29,6 +29,11 @@ func Install(apkPath string) CommandReturn {
 	return runWithPrint("adb", "install", apkPath)
 }
 
+// InstallTo install APK to the specific device
+func InstallTo(deviceID string, apkPath string) CommandReturn {
+	return runWithPrint("adb", "-s", deviceID, "install", apkPath)
+}
+
 // Debug enable waiting debug mode in android
 func Debug(isPersistent bool, packageName string) CommandReturn {
 	if isPersistent {
@@ -67,3 +72,18 @@ func ClearData(packageName string) CommandReturn {
 	return runWithPrint("adb", "shell", "pm", "clear", packageName)
 }
 
+// ConnectedDevices return all devices that connected to ADB
+func ConnectedDevices() CommandReturn {
+	return runWithPrint("adb", "devices")
+}
+
+// AvdList print all available AVD(s)
+func AvdList() CommandReturn {
+	return runWithPrint("emulator", "-list-avds")
+}
+
+// AvdRun start the AVD with the passed name
+func AvdRun(avdName string) {
+	cmd := exec.Command("emulator", "@"+avdName)
+	cmd.Start()
+}
