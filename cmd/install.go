@@ -60,9 +60,10 @@ func runCommand(apkPath string) {
 }
 
 func showDevicePicker(apkPath string) {
+	deviceChoice := getDeviceChoice()
 	prompt := pui.Select{
-		Label: "Select Target",
-		Items: getDeviceChoice(),
+		Label: "Select Target:",
+		Items: deviceChoice,
 	}
 
 	_, result, err := prompt.Run()
@@ -74,10 +75,22 @@ func showDevicePicker(apkPath string) {
 
 	deviceID := strings.Split(result, "\t")[0]
 
-	fmt.Println("installing to " + deviceID)
+	if deviceID == "All" {
+		for _, id := range deviceChoice {
+			installTo(id, apkPath)
+		}
+	} else {
+		installTo(deviceID, apkPath)
+	}
+}
+
+func installTo(deviceID string, apkPath string) {
+	fmt.Println("Installing to " + deviceID)
 	commandReturn := adb.InstallTo(deviceID, apkPath)
 
-	fmt.Println(string(commandReturn.Output))
+	if commandReturn.Error == nil {
+		fmt.Println(string(commandReturn.Output))
+	}
 }
 
 func getDeviceChoice() []string {
@@ -89,7 +102,7 @@ func getDeviceChoice() []string {
 		return []string{}
 	}
 
-	deviceChoice := []string{}
+	deviceChoice := []string{"All"}
 	for i, v := range arrayOfChoice {
 		if i == 0 {
 			continue
