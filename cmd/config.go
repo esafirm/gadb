@@ -14,14 +14,14 @@ type Config struct {
 }
 
 func writeConfig(data Config) {
-	fmt.Println(data)
 	dataJSON, err := json.Marshal(data)
-	fmt.Println(err)
-	fmt.Println(string(dataJSON))
-
 	_ = ioutil.WriteFile(fileName, dataJSON, 0644)
 
-	fmt.Println("Project initialized!")
+	if err != nil {
+		fmt.Println(err)
+	} else {
+		fmt.Println("Project initialized!")
+	}
 }
 
 func readConfig() (Config, error) {
