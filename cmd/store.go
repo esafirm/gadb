@@ -28,8 +28,11 @@ var storeCmd = &cobra.Command{
 	Use:   "store <package>",
 	Short: "Open playstore page",
 	Run: func(cmd *cobra.Command, args []string) {
-		packageName := args[0]
-		openStore(packageName)
+		if len(args) > 0 {
+			openStore(args[0])
+		} else {
+			openStore("")
+		}
 	},
 }
 
