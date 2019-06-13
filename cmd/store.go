@@ -25,7 +25,7 @@ import (
 
 // storeCmd represents the store command
 var storeCmd = &cobra.Command{
-	Use:   "store <package>",
+	Use:   "store [package]",
 	Short: "Open playstore page",
 	Run: func(cmd *cobra.Command, args []string) {
 		if len(args) > 0 {
