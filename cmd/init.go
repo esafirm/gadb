@@ -15,20 +15,12 @@
 package cmd
 
 import (
-	"encoding/json"
 	"errors"
-	"fmt"
-	"io/ioutil"
 	"os"
 
 	promptui "github.com/manifoldco/promptui"
 	"github.com/spf13/cobra"
 )
-
-// Config that exported to json file
-type Config struct {
-	PackageName string `json:"packageName"`
-}
 
 // initCmd represents the init command
 var initCmd = &cobra.Command{
@@ -87,17 +79,6 @@ func askData() {
 			PackageName: answers[0],
 		},
 	)
-}
-
-func writeConfig(data Config) {
-	fmt.Println(data)
-	dataJSON, err := json.Marshal(data)
-	fmt.Println(err)
-	fmt.Println(string(dataJSON))
-	
-	_ = ioutil.WriteFile("gadb.setting.json", dataJSON, 0644)
-
-	fmt.Println("Project initialized!")
 }
 
 func askQuestion(questionLabel string) (string, error) {

@@ -6,4 +6,4 @@ build:
 buildbin: 
 	go build -o $(BIN_PATH)
 run: 
-	@go run main.go init
+	@go run main.go store
