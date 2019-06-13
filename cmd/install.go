@@ -86,11 +86,7 @@ func showDevicePicker(apkPath string) {
 
 func installTo(deviceID string, apkPath string) {
 	fmt.Println("Installing to " + deviceID)
-	commandReturn := adb.InstallTo(deviceID, apkPath)
-
-	if commandReturn.Error == nil {
-		fmt.Println(string(commandReturn.Output))
-	}
+	adb.InstallTo(deviceID, apkPath)
 }
 
 func getDeviceChoice() []string {
