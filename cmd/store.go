@@ -25,24 +25,29 @@ import (
 
 // storeCmd represents the store command
 var storeCmd = &cobra.Command{
-	Use:   "store",
-	Short: "A brief description of your command",
+	Use:   "store <package>",
+	Short: "Open playstore page",
 	Run: func(cmd *cobra.Command, args []string) {
-		openStore()
+		packageName := args[0]
+		openStore(packageName)
 	},
 }
 
-func openStore() {
-	config, err := readConfig()
-	if err == nil {
-		openbrowser("https://play.google.com/store/apps/details?id=" + config.PackageName)
+func openStore(packageName string) {
+	if len(packageName) == 0 {
+		config, err := readConfig()
+		if err == nil {
+			openbrowser(config.PackageName)
+		} else {
+			fmt.Println("Project not initialized or corrupt config file")
+		}
 	} else {
-		fmt.Println("Project not initialized or corrupt config file")
+		openbrowser(packageName)
 	}
-
 }
 
-func openbrowser(url string) {
+func openbrowser(packageName string) {
+	url := "https://play.google.com/store/apps/details?id=" + packageName
 	var err error
 
 	switch runtime.GOOS {
