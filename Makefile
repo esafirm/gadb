@@ -6,4 +6,4 @@ build:
 buildbin: 
 	go build -o $(BIN_PATH)
 run: 
-	@go run main.go store
+	@go run main.go clear com.bukalapak.android
