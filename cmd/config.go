@@ -31,3 +31,14 @@ func readConfig() (Config, error) {
 
 	return config, err
 }
+
+func GetPackageNameFromArgs(args []string) (string, error) {
+	if len(args) == 0 {
+		config, err := readConfig()
+		if err != nil {
+			return "", err
+		}
+		return "", config.PackageName
+	}
+	return "", args[0]
+}
