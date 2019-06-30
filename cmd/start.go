@@ -15,6 +15,8 @@
 package cmd
 
 import (
+	"fmt"
+
 	adb "github.com/esafirm/gadb/adb"
 	"github.com/spf13/cobra"
 )
@@ -27,6 +29,8 @@ var startCmd = &cobra.Command{
 		packageName, err := GetPackageNameFromArgs(args)
 		if err == nil {
 			adb.Start(packageName)
+		} else {
+			fmt.Println(err)
 		}
 	},
 }
