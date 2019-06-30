@@ -32,13 +32,15 @@ func readConfig() (Config, error) {
 	return config, err
 }
 
+// GetPackageNameFromArgs take the first index of args as package or get the packagename
+// from config file
 func GetPackageNameFromArgs(args []string) (string, error) {
 	if len(args) == 0 {
 		config, err := readConfig()
 		if err != nil {
 			return "", err
 		}
-		return "", config.PackageName
+		return config.PackageName, nil
 	}
-	return "", args[0]
+	return args[0], nil
 }
