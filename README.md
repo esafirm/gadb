@@ -12,65 +12,7 @@ For example you can get the list of connected android devices by using `gadb dev
 
 ## Commands
 
-### avds 
-
-List available emulators 
-
-```
-$ gadb avds
-```
-
-Run emulator 
-
-```
-$ gadb avds [emulator_name]
-```
-
-### debug
-
-Set waiting for debugger status, pretty handy if you want to debug your deeplink or any custom entry point in your app
-
-```
-$ gadb debug [package_name] [flags]
-``` 
-
-Clear waiting for debugger status 
-
-```
-$ gadb debug --clear 
-```
-
-### install
-
-Install apk to connected devices.
-
-> This command will automatically uninstall and install if `adb install` return `ALREADY_EXISTS` error 
-
-```shell
-$ gadb install [apk_path]
-```
-
-### restart
-
-Restart application
-
-```shell
-$ gadb restart [package_name]
-```
-
-Restart application and clear the application data
-
-```shell
-$ gadb restart [package_name] --clear
-```
-
-### store
-
-Open PlayStore page
-
-```shell 
-$ gadb store [package_name]
-```
+For detailed command, please refer to [Command Page](https://github.com/esafirm/gadb/blob/master/COMMANDS.md)
 
 ## License
 
