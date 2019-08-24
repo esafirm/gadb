@@ -1,4 +1,4 @@
-package cmd
+package config
 
 import (
 	"encoding/json"
@@ -15,7 +15,7 @@ type Config struct {
 	PackageName string `json:"packageName"`
 }
 
-func writeConfig(data Config) {
+func WriteConfig(data Config) {
 	dataJSON, err := json.Marshal(data)
 	_ = ioutil.WriteFile(fileName, dataJSON, 0644)
 
@@ -26,7 +26,7 @@ func writeConfig(data Config) {
 	}
 }
 
-func readConfig() (Config, error) {
+func ReadConfig() (Config, error) {
 	if !isConfigExist() {
 		return Config{}, errors.New("Config file doesn't exist. Create one using gadb init")
 	}
@@ -46,7 +46,7 @@ func isConfigExist() bool {
 // from config file
 func GetPackageNameFromArgs(args []string) (string, error) {
 	if len(args) == 0 {
-		config, err := readConfig()
+		config, err := ReadConfig()
 		if err != nil {
 			return "", err
 		}

@@ -16,6 +16,7 @@ package cmd
 
 import (
 	adb "github.com/esafirm/gadb/adb"
+	"github.com/esafirm/gadb/config"
 	"github.com/spf13/cobra"
 )
 
@@ -31,7 +32,7 @@ var clearCmd = &cobra.Command{
 
 func clearAppData(packageName string) {
 	if len(packageName) == 0 {
-		config, err := readConfig()
+		config, err := config.ReadConfig()
 		if err == nil {
 			adb.ClearData(config.PackageName)
 		}
@@ -42,7 +43,7 @@ func clearAppData(packageName string) {
 
 func getPackageName(packageName string) string {
 	if len(packageName) == 0 {
-		config, err := readConfig()
+		config, err := config.ReadConfig()
 		if err != nil {
 			return ""
 		}

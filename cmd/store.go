@@ -20,6 +20,7 @@ import (
 	"os/exec"
 	"runtime"
 
+	"github.com/esafirm/gadb/config"
 	"github.com/spf13/cobra"
 )
 
@@ -38,7 +39,7 @@ var storeCmd = &cobra.Command{
 
 func openStore(packageName string) {
 	if len(packageName) == 0 {
-		config, err := readConfig()
+		config, err := config.ReadConfig()
 		if err == nil {
 			openbrowser(config.PackageName)
 		} else {

@@ -19,6 +19,7 @@ import (
 
 	adb "github.com/esafirm/gadb/adb"
 	"github.com/spf13/cobra"
+	"github.com/esafirm/gadb/config"
 )
 
 // startCmd represents the start command
@@ -26,7 +27,7 @@ var startCmd = &cobra.Command{
 	Use:   "start [package]",
 	Short: "Start Android application",
 	Run: func(cmd *cobra.Command, args []string) {
-		packageName, err := GetPackageNameFromArgs(args)
+		packageName, err := config.GetPackageNameFromArgs(args)
 		if err == nil {
 			adb.Start(packageName)
 		} else {

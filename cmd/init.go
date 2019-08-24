@@ -20,12 +20,13 @@ import (
 
 	promptui "github.com/manifoldco/promptui"
 	"github.com/spf13/cobra"
+	"github.com/esafirm/gadb/config"
 )
 
 // initCmd represents the init command
 var initCmd = &cobra.Command{
 	Use:   "init",
-	Short: "A brief description of your command",
+	Short: "Create gadb configuration",
 	Run: func(cmd *cobra.Command, args []string) {
 		validateDirectory()
 	},
@@ -74,8 +75,8 @@ func askData() {
 		}
 	}
 
-	writeConfig(
-		Config{
+	config.WriteConfig(
+		config.Config{
 			PackageName: answers[0],
 		},
 	)

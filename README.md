@@ -64,6 +64,14 @@ Restart application and clear the application data
 $ gadb restart [package_name] --clear
 ```
 
+### store
+
+Open PlayStore page
+
+```shell 
+$ gadb store [package_name]
+```
+
 ## License
 
 Apache 2 @ Esa Firman
