@@ -87,3 +87,7 @@ func AvdRun(avdName string) {
 	cmd := exec.Command("emulator", "@"+avdName)
 	cmd.Start()
 }
+
+func DumpSys(moreCommand string) CommandReturn {
+	return runWithPrint("adb shell dumpsys " + moreCommand)
+}
