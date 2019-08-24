@@ -26,8 +26,8 @@ import (
 
 // installCmd represents the install command
 var installCmd = &cobra.Command{
-	Use:  "install [apk_path]",
-	Long: `Install APK to single or multiple`,
+	Use:   "install [apk_path]",
+	Short: `Install APK to single or multiple`,
 	Run: func(cmd *cobra.Command, args []string) {
 		if len(args) == 0 {
 			showHelpAndExit(cmd, "APK path is required")
