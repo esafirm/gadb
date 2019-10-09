@@ -14,7 +14,7 @@ notifications:
 
 # What to do
 script:
-- go build
+- go build -mod vendor
 
 # Deploy to Github
 deploy:
