@@ -1,0 +1,27 @@
+dist: xenial
+
+language: go
+
+go:
+- 1.12.x
+
+# Only clone most recent commit
+git:
+  depth: 1
+
+notifications:
+  email: false
+
+# What to do
+script:
+- go build
+
+# Deploy to Github
+deploy:
+  provider: releases
+  api_key:
+    secure: LXm1aYkNEQqmiCdwHd7fLexwLVA1c+P37aXMWK4ljoqjRr8yu1Pnnf1KOGXv9HL6xbu9eLX4r28vUp/VMSvQ18hfmJQtRXYZjz5oH1LTEujfQBNJcJo+sZ5T+pYMogrPwsAVcCIX+dhwaxwM8eqdXMpLF4TAgDWNTUXynfeVygkZ6tkyH84e2Ydwu6Onk03TP0piqBTFHAllxNZGKFpt+h+TR6SKX6XXvQjgeIVlNcz1sCFEHxl2X7KQGfmUjhFS+4mhEmb2iAnivulHdKAoMEeHuErL3f6Vnvz1tAlKDJNgUzQgsDm+t2VPHkFgBULAHWlJJl+LTmd0RBmNcii1sNdSJLli+cINXm4LWm7I1IRQFMnhS91GnczRe19kkYupj7GXxld4IAfS/QPPaDbyw6uoOuEyltiQ9DCQoMe0ne8BstGaqfX0+jBmZ8iloZeMWWQOntla1WzdhLF5vG5p/5qv+ldHBpzNWbPbq8DyU4hCDRVh179n6Fo2K3d+LtayOIE01OAgKu9xTbk5UXLy85PNbTW0ogpuC9LedYn8hjsZHwDWuV2kO+JhuZBmkJAxfUK2oLJ0tUDWIwYsyeHx93gpgOiX/dKtLW8jjUpNNzkGQxXmjpPBcJNtwOeupGpzhBi7MZYyrloS3fwsyebGd94Wx1Tt4BoKQ0cqNiSqp1k=
+  file: gadb
+  skip_cleanup: true
+  on:
+    tags: true
