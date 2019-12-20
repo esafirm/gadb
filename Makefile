@@ -6,4 +6,4 @@ build:
 buildbin: 
 	go build -o $(BIN_PATH)
 run: 
-	@go run main.go clear com.bukalapak.android
+	@go run main.go manifest ~/Desktop/apk.apk
