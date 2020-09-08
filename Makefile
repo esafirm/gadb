@@ -6,4 +6,4 @@ build:
 buildbin: 
 	go build -o $(BIN_PATH)
 run: 
-	@go run main.go manifest ~/Desktop/apk.apk
+	@go run main.go mock
