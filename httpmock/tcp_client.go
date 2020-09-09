@@ -23,7 +23,6 @@ func Connect(mockString []string) {
 	defer conn.Close()
 
 	write(conn, createPayload(mockString))
-	conn.CloseWrite()
 
 	reader := bufio.NewReader(conn)
 	handleResponseWithReader(*reader)
@@ -38,7 +37,8 @@ func handleResponseWithReader(reader bufio.Reader) {
 		line, _, err := reader.ReadLine()
 		if err != nil {
 			if err == io.EOF {
-				break
+				println("Read socket EOF")
+				continue
 			}
 		}
 		println("=>", string(line))
@@ -47,7 +47,7 @@ func handleResponseWithReader(reader bufio.Reader) {
 
 func write(conn net.Conn, content string) (int, error) {
 	writer := bufio.NewWriter(conn)
-	number, err := writer.WriteString(content)
+	number, err := writer.WriteString(content + "\n")
 	if err == nil {
 		err = writer.Flush()
 	}
