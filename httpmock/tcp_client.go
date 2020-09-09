@@ -2,14 +2,16 @@ package httpmock
 
 import (
 	"bufio"
+	"io"
 	"net"
 	"strings"
 )
 
 const (
-	SERVER_ADDR = "localhost:6666"
-	NETWORK     = "tcp"
-	SEPARATOR   = ","
+	DEFAULT_PORT = "6379"
+	SERVER_ADDR  = "localhost:" + DEFAULT_PORT
+	NETWORK      = "tcp"
+	SEPARATOR    = ","
 )
 
 func Connect(mockString []string) {
@@ -35,7 +37,9 @@ func handleResponseWithReader(reader bufio.Reader) {
 	for {
 		line, _, err := reader.ReadLine()
 		if err != nil {
-			panic(err)
+			if err == io.EOF {
+				break
+			}
 		}
 		println("=>", string(line))
 	}

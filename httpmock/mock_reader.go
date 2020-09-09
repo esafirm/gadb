@@ -9,8 +9,9 @@ import (
 const DEFAULT_PREFIX = "mock_"
 
 type MockContext struct {
-	Regex string `json:"regex"`
-	Mock  string `json:"mock"`
+	Path   string `json:"path"`
+	Body   string `json:"mock"`
+	Method string `json:"method"`
 }
 
 func ReadMockFiles(dir string, passedPrefix *string) ([]MockContext, []string) {

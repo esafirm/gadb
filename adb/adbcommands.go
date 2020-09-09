@@ -19,6 +19,11 @@ func runWithPrint(name string, arg ...string) CommandReturn {
 	return CommandReturn{output, error}
 }
 
+func runOnly(name string, arg ...string) CommandReturn {
+	output, err := exec.Command(name, arg...).CombinedOutput()
+	return CommandReturn{output, err}
+}
+
 // Uninstall application with following package name
 func Uninstall(packageName string) CommandReturn {
 	return runWithPrint("adb", "uninstall", packageName)
@@ -90,4 +95,14 @@ func AvdRun(avdName string) {
 
 func DumpSys(moreCommand string) CommandReturn {
 	return runWithPrint("adb shell dumpsys " + moreCommand)
+}
+
+// Forward forward tcp port
+func Forward(port string) CommandReturn {
+	return runWithPrint("adb", "forward", "tcp:"+port, "tcp:"+port)
+}
+
+// ForwardList return all forward list
+func ForwardList() CommandReturn {
+	return runOnly("adb", "forward", "--list")
 }

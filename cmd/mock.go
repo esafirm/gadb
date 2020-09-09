@@ -15,7 +15,7 @@
 package cmd
 
 import (
-	// adb "github.com/esafirm/gadb/adb"
+	adb "github.com/esafirm/gadb/adb"
 	httpmock "github.com/esafirm/gadb/httpmock"
 	"github.com/spf13/cobra"
 	"os"
@@ -31,6 +31,13 @@ var mockCmd = &cobra.Command{
 			prefix = nil
 		} else {
 			prefix = &args[0]
+		}
+
+		forwardList := adb.ForwardList()
+
+		// Handle blank
+		if len(forwardList.Output) <= 1 {
+			adb.Forward(httpmock.DEFAULT_PORT)
 		}
 
 		println("Preparing…")
