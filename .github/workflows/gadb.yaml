@@ -3,9 +3,11 @@ name: Go
 on:
   push:
     branches: [ master ]
+    tags:
+      - '*'
   pull_request:
     branches: [ master ]
-
+F
 jobs:
   build:
     name: Build
