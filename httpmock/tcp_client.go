@@ -7,7 +7,6 @@ import (
 	"net"
 	"os"
 	"os/signal"
-	"strings"
 	"syscall"
 	"time"
 
@@ -24,11 +23,12 @@ const (
 
 var lastEof int64 = 0
 var isWaitingForConnection bool = true
+var connection net.Conn
 
 func Connect(mockString []string) {
-	// listenSignal()
 	spin := spin.New()
 
+	go listenSignal()
 	go detectConnected()
 
 	for {
@@ -37,22 +37,18 @@ func Connect(mockString []string) {
 		tcpAddr, err := net.ResolveTCPAddr(NETWORK, SERVER_ADDR)
 		CheckErr(err)
 
-		conn, err := net.DialTCP(NETWORK, nil, tcpAddr)
+		connection, err = net.DialTCP(NETWORK, nil, tcpAddr)
 		CheckErr(err)
-		defer conn.Close()
+		defer connection.Close()
 
-		write(conn, createPayload(mockString))
+		write(connection, createMockPayload(mockString))
 
-		reader := bufio.NewReader(conn)
+		reader := bufio.NewReader(connection)
 		handleResponseWithReader(*reader)
 
 		// Make things slower
 		time.Sleep(200 * time.Millisecond)
 	}
-}
-
-func createPayload(mockString []string) string {
-	return strings.Join(mockString, SEPARATOR)
 }
 
 func handleResponseWithReader(reader bufio.Reader) {
@@ -79,7 +75,8 @@ func write(conn net.Conn, content string) (int, error) {
 }
 
 func clearMock() {
-	println("Clear mocks!")
+	println("Clearing mock…")
+	write(connection, createClearPayload())
 }
 
 func detectConnected() {
@@ -101,22 +98,20 @@ func detectConnected() {
 }
 
 func listenSignal() {
-
 	sigs := make(chan os.Signal, 1)
 	done := make(chan bool, 1)
 
-	signal.Notify(sigs, syscall.SIGTERM)
+	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
 
 	go func() {
 		sig := <-sigs
-		fmt.Println("Signal:")
 		fmt.Println(sig)
 		done <- true
 	}()
 
-	fmt.Println("awaiting signal")
 	<-done
-	fmt.Println("exiting")
+	clearMock()
+	os.Exit(0)
 }
 
 func makeTimestamp() int64 {
