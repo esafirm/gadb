@@ -44,7 +44,6 @@ var mockCmd = &cobra.Command{
 		dir, _ := os.Getwd()
 		_, mockStrings := httpmock.ReadMockFiles(dir, prefix)
 
-		println("Connecting…")
 		httpmock.Connect(mockStrings)
 	},
 }
