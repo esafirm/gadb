@@ -11,9 +11,9 @@ const (
 )
 
 func createMockPayload(mockString []string) string {
-	return CHANNEL_MOCK + SEPARATOR + strings.Join(mockString, SEPARATOR)
+	return CHANNEL_MOCK + PAYLOAD_SEPARATOR + strings.Join(mockString, SEPARATOR)
 }
 
 func createClearPayload() string {
-	return CHANNEL_CLEAR + SEPARATOR
+	return CHANNEL_CLEAR + PAYLOAD_SEPARATOR
 }
