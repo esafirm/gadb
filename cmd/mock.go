@@ -21,18 +21,15 @@ import (
 	"os"
 )
 
+var dir string
+var file string
+var prefix string
+
 var mockCmd = &cobra.Command{
 	Use:   "mock",
 	Short: "Set mock for OkHttp interceptor",
+	Args:  cobra.MaximumNArgs(0),
 	Run: func(cmd *cobra.Command, args []string) {
-
-		var prefix *string
-		if len(args) == 0 {
-			prefix = nil
-		} else {
-			prefix = &args[0]
-		}
-
 		forwardList := adb.ForwardList()
 
 		// Handle blank
@@ -41,8 +38,18 @@ var mockCmd = &cobra.Command{
 		}
 
 		println("Preparing…")
-		dir, _ := os.Getwd()
-		_, mockStrings := httpmock.ReadMockFiles(dir, prefix)
+
+		if &dir == nil {
+			currentDir, _ := os.Getwd()
+			dir = currentDir
+		}
+
+		var mockStrings []string
+		if &file == nil {
+			_, mockStrings = httpmock.ReadMockFiles(dir, &prefix)
+		} else {
+			_, mockStrings = httpmock.ReadMockFile(file)
+		}
 
 		httpmock.Connect(mockStrings)
 	},
@@ -50,4 +57,7 @@ var mockCmd = &cobra.Command{
 
 func init() {
 	rootCmd.AddCommand(mockCmd)
+	mockCmd.Flags().StringVarP(&dir, "directory", "d", "", "Set mock file to all json in passed directory")
+	mockCmd.Flags().StringVarP(&file, "file", "f", "", "Set mock file to passed file")
+	mockCmd.Flags().StringVarP(&prefix, "prefix", "p", "mock_", "Set prefix for mock file")
 }

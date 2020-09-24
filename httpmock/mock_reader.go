@@ -6,23 +6,23 @@ import (
 	"strings"
 )
 
-const DEFAULT_PREFIX = "mock_"
-
 type MockContext struct {
 	Path   string `json:"path"`
 	Body   string `json:"mock"`
 	Method string `json:"method"`
 }
 
-func ReadMockFiles(dir string, passedPrefix *string) ([]MockContext, []string) {
-	var prefix string
-	if passedPrefix == nil {
-		prefix = DEFAULT_PREFIX
-	} else {
-		prefix = *passedPrefix
-	}
+func ReadMockFile(path string) ([]MockContext, []string) {
+	files := []string{path}
+	return read(files)
+}
 
-	files := listFiles(dir, prefix)
+func ReadMockFiles(dir string, prefix *string) ([]MockContext, []string) {
+	files := listFiles(dir, *prefix)
+	return read(files)
+}
+
+func read(files []string) ([]MockContext, []string) {
 	jsons := getJsons(files)
 	contexts := getContexts(jsons)
 
