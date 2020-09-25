@@ -15,10 +15,11 @@
 package cmd
 
 import (
+	"os"
+
 	adb "github.com/esafirm/gadb/adb"
 	httpmock "github.com/esafirm/gadb/httpmock"
 	"github.com/spf13/cobra"
-	"os"
 )
 
 var dir string
@@ -59,5 +60,5 @@ func init() {
 	rootCmd.AddCommand(mockCmd)
 	mockCmd.Flags().StringVarP(&dir, "directory", "d", "", "Set mock file to all json in passed directory")
 	mockCmd.Flags().StringVarP(&file, "file", "f", "", "Set mock file to passed file")
-	mockCmd.Flags().StringVarP(&prefix, "prefix", "p", "mock_", "Set prefix for mock file")
+	mockCmd.Flags().StringVarP(&prefix, "prefix", "p", "", "Set prefix for mock file")
 }
