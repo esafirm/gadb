@@ -32,5 +32,6 @@ brews:
   - tap:
       owner: esafirm
       name: homebrew-tap
+    desc: Golang ADB wrapper providing all ADB features with more syntatic sugar and more features
     folder: Formula
     homepage: https://github.com/esafirm/homebrew-tap
