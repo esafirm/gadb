@@ -4,8 +4,6 @@ before:
   hooks:
     # You may remove this if you don't use go modules.
     - go mod download
-    # you may remove this if you don't need go generate
-    - go generate ./...
 builds:
   - env:
       - CGO_ENABLED=0
@@ -34,6 +32,5 @@ brews:
   - tap:
       owner: esafirm
       name: homebrew-tap
-      token: "{{ .Env.GH_PAT }}"
     folder: Formula
     homepage: https://github.com/esafirm/homebrew-tap
