@@ -6,4 +6,4 @@ build:
 buildbin: 
 	go build -o $(BIN_PATH)
 run: 
-	@go run main.go mock -f mock_sample.json
+	@go run main.go mock -f mocksamples/mock_sample.yaml
