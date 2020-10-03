@@ -1,0 +1,5 @@
+path: '*google.com*'
+method: GET
+code: 200
+header: { 'WWW-gabut-ga': 'yes' }
+body: { 'message': 'hello mock' }

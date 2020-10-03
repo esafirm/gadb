@@ -3,13 +3,16 @@ package httpmock
 import (
 	"encoding/json"
 	"io/ioutil"
+	"path/filepath"
 	"strings"
 )
 
 type MockContext struct {
-	Path   string `json:"path"`
-	Body   string `json:"mock"`
-	Method string `json:"method"`
+	Path   string      `json:"path" yaml:"path"`
+	Method string      `json:"method" yaml:"method"`
+	Code   string      `json:"code" yaml:"code"`
+	Body   interface{} `json:"body" yaml:"body"`
+	Header interface{} `json:"header" yaml:"header"`
 }
 
 func ReadMockFile(path string) ([]MockContext, []string) {
@@ -23,10 +26,12 @@ func ReadMockFiles(dir string, prefix *string) ([]MockContext, []string) {
 }
 
 func read(files []string) ([]MockContext, []string) {
-	jsons := getJsons(files)
-	contexts := getContexts(jsons)
+	contents := getContents(files)
+	contexts := getContexts(contents)
 
-	return contexts, jsons
+	println(contents[0])
+
+	return contexts, contents
 }
 
 func getContexts(jsons []string) []MockContext {
@@ -39,15 +44,22 @@ func getContexts(jsons []string) []MockContext {
 	return contexts
 }
 
-func getJsons(files []string) []string {
-	var jsons []string
+func getContents(files []string) []string {
+	var contents []string
 	for _, f := range files {
-		jsonFile, err := ioutil.ReadFile(f)
+		ext := strings.ToLower(filepath.Ext(f))
+		file, err := ioutil.ReadFile(f)
 		CheckErr(err)
 
-		jsons = append(jsons, SpaceMap(string(jsonFile)))
+		var content string
+		if ext == ".yml" || ext == ".yaml" {
+			content = SpaceMap(YamlToJsonString(file))
+		} else {
+			content = SpaceMap(string(file))
+		}
+		contents = append(contents, content)
 	}
-	return jsons
+	return contents
 }
 
 func listFiles(dir string, prefix string) []string {
