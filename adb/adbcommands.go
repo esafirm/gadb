@@ -84,7 +84,7 @@ func ConnectedDevices() CommandReturn {
 
 // AvdList print all available AVD(s)
 func AvdList() CommandReturn {
-	return runWithPrint("emulator", "-list-avds")
+	return runOnly("emulator", "-list-avds")
 }
 
 // AvdRun start the AVD with the passed name

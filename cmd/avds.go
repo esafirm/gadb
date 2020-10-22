@@ -15,7 +15,11 @@
 package cmd
 
 import (
+	"fmt"
+	"strings"
+
 	adb "github.com/esafirm/gadb/adb"
+	pui "github.com/manifoldco/promptui"
 	"github.com/spf13/cobra"
 )
 
@@ -24,11 +28,34 @@ var avdsCmd = &cobra.Command{
 	Short: "List all available AVD(s) and run it",
 	Run: func(cmd *cobra.Command, args []string) {
 		if len(args) == 0 {
-			adb.AvdList()
+			showAvdSelection()
 		} else {
 			adb.AvdRun(args[0])
 		}
 	},
+}
+
+func showAvdSelection() {
+	commandResult := adb.AvdList()
+	if commandResult.Error != nil {
+		panic(commandResult.Error)
+	}
+
+	avdList := strings.TrimSpace(string(commandResult.Output))
+	avdListSlice := strings.Split(avdList, "\n")
+
+	prompt := pui.Select{
+		Label: "Select AVD to run",
+		Items: avdListSlice,
+	}
+
+	_, result, err := prompt.Run()
+	if err != nil {
+		panic(err)
+	}
+
+	fmt.Printf("Launching %s AVD", result)
+	adb.AvdRun(result)
 }
 
 func init() {
