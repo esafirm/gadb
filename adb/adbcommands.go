@@ -93,6 +93,11 @@ func AvdRun(avdName string) {
 	cmd.Start()
 }
 
+// Wipe AVD emulator data
+func AvdWipe(avdName string) {
+	runWithPrint("emulator", "@"+avdName, "-wipe-data{")
+}
+
 func DumpSys(moreCommand string) CommandReturn {
 	return runWithPrint("adb shell dumpsys " + moreCommand)
 }

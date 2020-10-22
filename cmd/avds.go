@@ -23,10 +23,17 @@ import (
 	"github.com/spf13/cobra"
 )
 
+var isWipe bool
+
 var avdsCmd = &cobra.Command{
 	Use:   "avds [emulator name]",
 	Short: "List all available AVD(s) and run it",
 	Run: func(cmd *cobra.Command, args []string) {
+		if isWipe {
+			showAvdsWipe()
+			return
+		}
+
 		if len(args) == 0 {
 			showAvdSelection()
 		} else {
@@ -35,7 +42,18 @@ var avdsCmd = &cobra.Command{
 	},
 }
 
+func showAvdsWipe() {
+	result := showAvdsPrompt("Select AVD to be wiped")
+	adb.AvdWipe(result)
+}
+
 func showAvdSelection() {
+	result := showAvdsPrompt("Select AVD to run")
+	fmt.Printf("Launching %s AVD", result)
+	adb.AvdRun(result)
+}
+
+func showAvdsPrompt(caption string) string {
 	commandResult := adb.AvdList()
 	if commandResult.Error != nil {
 		panic(commandResult.Error)
@@ -45,7 +63,7 @@ func showAvdSelection() {
 	avdListSlice := strings.Split(avdList, "\n")
 
 	prompt := pui.Select{
-		Label: "Select AVD to run",
+		Label: caption,
 		Items: avdListSlice,
 	}
 
@@ -54,10 +72,10 @@ func showAvdSelection() {
 		panic(err)
 	}
 
-	fmt.Printf("Launching %s AVD", result)
-	adb.AvdRun(result)
+	return result
 }
 
 func init() {
 	rootCmd.AddCommand(avdsCmd)
+	avdsCmd.Flags().BoolVarP(&isWipe, "wipe", "w", false, "Wipe AVD data")
 }
