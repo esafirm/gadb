@@ -22,24 +22,24 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var manifestCmd = &cobra.Command{
-	Use:   "manifest [apk]",
-	Short: "Print the AndroidManifest.xml from the APK",
+var pakcageCmd = &cobra.Command{
+	Use:   "package [apk]",
+	Short: "Print package name from the APK",
 	Run: func(cmd *cobra.Command, args []string) {
 		if len(args) == 0 {
 			fmt.Println("You must provide the APK")
 			return
 		}
 
-		commandReturn := analyzer.Manifest(args[0])
-		if commandReturn.Error != nil {
-			fmt.Println(commandReturn.Error)
+		pakckageName, err := analyzer.PackageName(args[0])
+		if err != nil {
+			fmt.Printf("Package name: %s", pakckageName)
 		} else {
-			fmt.Println(string(commandReturn.Output))
+			panic(err)
 		}
 	},
 }
 
 func init() {
-	rootCmd.AddCommand(manifestCmd)
+	rootCmd.AddCommand(pakcageCmd)
 }
