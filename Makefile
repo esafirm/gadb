@@ -6,4 +6,4 @@ build:
 buildbin: 
 	go build -o $(BIN_PATH)
 run: 
-	@go run main.go avds -w
+	@go run main.go install ~/Desktop/app.apk

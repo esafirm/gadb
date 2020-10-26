@@ -52,10 +52,13 @@ func runCommand(apkPath string) {
 		output := string(comamndReturn.Output)
 		if canRecoverAlreadyExist(output) {
 			runCommand(apkPath)
+			return
 		}
 		if shouldShowDevicePicker(output) {
 			showDevicePicker(apkPath)
+			return
 		}
+		fmt.Println(string(comamndReturn.Output))
 	}
 }
 
