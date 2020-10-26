@@ -15,14 +15,18 @@
 package cmd
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"strings"
 
 	adb "github.com/esafirm/gadb/adb"
+	analyzer "github.com/esafirm/gadb/apkanalyzer"
 	pui "github.com/manifoldco/promptui"
 	"github.com/spf13/cobra"
 )
+
+var isYes bool
 
 // installCmd represents the install command
 var installCmd = &cobra.Command{
@@ -50,7 +54,11 @@ func runCommand(apkPath string) {
 
 	if comamndReturn.Error != nil {
 		output := string(comamndReturn.Output)
-		if canRecoverAlreadyExist(output) {
+		if canRecoverAlreadyExist(apkPath, output) {
+			runCommand(apkPath)
+			return
+		}
+		if canRecoverVersionDowngrade(apkPath, output) {
 			runCommand(apkPath)
 			return
 		}
@@ -119,19 +127,72 @@ func shouldShowDevicePicker(output string) bool {
 	return strings.Contains(output, "more than one device/emulator")
 }
 
-func canRecoverAlreadyExist(text string) bool {
+func canRecoverVersionDowngrade(apkPath string, text string) bool {
+	packageName, err := analyzer.PackageName(apkPath)
+	if err != nil {
+		panic(err)
+	}
+
+	isVersionDowngradeProblem := strings.Contains(text, "INSTALL_FAILED_VERSION_DOWNGRADE")
+
+	var isConfirmed bool = isYes
+	if isVersionDowngradeProblem && !isConfirmed {
+		message := fmt.Sprintf("%s already exist, do you want to uninstall first?", packageName)
+		isConfirmed = confirmUninstall(message)
+	}
+
+	if isConfirmed {
+		uninstall(packageName)
+	}
+	return false
+}
+
+func canRecoverAlreadyExist(apkPath string, text string) bool {
 	isAlreadyExistProblem := strings.Contains(text, "ALREADY_EXISTS")
 
 	if isAlreadyExistProblem {
-		var index = strings.Index(text, "re-install") + len("re-install")
-		var withoutIndex = strings.Index(text, "without")
-		var packageName = strings.TrimSpace(text[index:withoutIndex])
+		commandReturn := adb.ReInstall(apkPath)
+		if commandReturn.Error != nil {
 
-		uninstall(packageName)
+			var isConfirmed bool = isYes
+			if !isConfirmed {
+				isConfirmed = confirmUninstall("Do you want to uninstall first?")
+			}
 
-		return true
+			if isConfirmed {
+				var index = strings.Index(text, "re-install") + len("re-install")
+				var withoutIndex = strings.Index(text, "without")
+				var packageName = strings.TrimSpace(text[index:withoutIndex])
+
+				uninstall(packageName)
+				return true
+			}
+
+			return false
+		}
 	}
 
+	return false
+}
+
+func confirmUninstall(message string) bool {
+	validation := func(input string) error {
+		if input == "y" || input == "Y" || input == "n" || input == "N" {
+			return nil
+		}
+		return errors.New("Answer not valid")
+	}
+
+	prompt := pui.Prompt{
+		Label:    message + " [Y,n]",
+		Validate: validation,
+	}
+
+	result, _ := prompt.Run()
+
+	if result == "Y" || result == "y" {
+		return true
+	}
 	return false
 }
 
@@ -142,4 +203,5 @@ func uninstall(packageName string) {
 
 func init() {
 	rootCmd.AddCommand(installCmd)
+	mockCmd.Flags().BoolVarP(&isYes, "yes", "y", false, "Set auto confirm")
 }

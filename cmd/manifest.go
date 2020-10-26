@@ -16,12 +16,11 @@ package cmd
 
 import (
 	"fmt"
-	"os/exec"
+
+	analyzer "github.com/esafirm/gadb/apkanalyzer"
 
 	"github.com/spf13/cobra"
 )
-
-const ANALYZER = "apkanalyzer"
 
 var manifestCmd = &cobra.Command{
 	Use:   "manifest [apk]",
@@ -32,16 +31,11 @@ var manifestCmd = &cobra.Command{
 			return
 		}
 
-		_, err := exec.LookPath(ANALYZER)
-		if err != nil {
-			fmt.Println(ANALYZER + " is not in the path")
-		}
-
-		output, err := exec.Command(ANALYZER, "manifest", "print", args[0]).CombinedOutput()
-		if err != nil {
-			fmt.Println(err)
+		commandReturn := analyzer.Manifest(args[0])
+		if commandReturn.Error != nil {
+			fmt.Println(commandReturn.Error)
 		} else {
-			fmt.Println(string(output))
+			fmt.Println(string(commandReturn.Output))
 		}
 	},
 }
