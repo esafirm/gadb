@@ -1,21 +1,26 @@
 ## GADB (Go ADB)
 
-> Work in progress
-
-ADB wrapper with enhanced and more features! 
+ADB wrapper with enhanced and more features!
 
 ## Install
 
 Using [Homebrew](https://brew.sh/)
+
 ```
 brew install esafirm/tap/gadb
 ```
 
 Or download the binareis in [release page](https://github.com/esafirm/gadb/releases)
 
-## Usage 
+Create alias!
 
-Do anything you want to do with `adb` 
+```
+alias adb=gadb
+```
+
+## Usage
+
+Do anything you want to do with `adb`
 
 For example you can get the list of connected android devices by using `gadb devices`
 
