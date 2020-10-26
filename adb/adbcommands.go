@@ -34,6 +34,10 @@ func Install(apkPath string) CommandReturn {
 	return runWithPrint("adb", "install", apkPath)
 }
 
+func ReInstall(apkPath string) CommandReturn {
+	return runWithPrint("adb", "install", "-r", apkPath)
+}
+
 // InstallTo install APK to the specific device
 func InstallTo(deviceID string, apkPath string) CommandReturn {
 	return runWithPrint("adb", "-s", deviceID, "install", apkPath)
