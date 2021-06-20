@@ -51,13 +51,11 @@ func showHelpAndExit(cmd *cobra.Command, errorMsg string) {
 
 func runCommand(apkPath string) {
 	comamndReturn := adb.ReInstall(apkPath)
+	output := string(comamndReturn.Output)
+
+	println(output)
 
 	if comamndReturn.Error != nil {
-		output := string(comamndReturn.Output)
-		if canRecoverAlreadyExist(apkPath, output) {
-			runCommand(apkPath)
-			return
-		}
 		if canRecoverVersionDowngrade(apkPath, output) {
 			runCommand(apkPath)
 			return
@@ -144,24 +142,6 @@ func canRecoverVersionDowngrade(apkPath string, text string) bool {
 	if isConfirmed {
 		uninstall(packageName)
 	}
-	return false
-}
-
-func canRecoverAlreadyExist(apkPath string, text string) bool {
-	var isConfirmed bool = isYes
-	if !isConfirmed {
-		isConfirmed = confirmUninstall("Do you want to uninstall first?")
-	}
-
-	if isConfirmed {
-		var index = strings.Index(text, "re-install") + len("re-install")
-		var withoutIndex = strings.Index(text, "without")
-		var packageName = strings.TrimSpace(text[index:withoutIndex])
-
-		uninstall(packageName)
-		return true
-	}
-
 	return false
 }
 
