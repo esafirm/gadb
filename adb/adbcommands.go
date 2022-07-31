@@ -91,10 +91,14 @@ func AvdList() CommandReturn {
 	return runOnly("emulator", "-list-avds")
 }
 
-// AvdRun start the AVD with the passed name
-func AvdRun(avdName string) {
-	cmd := exec.Command("emulator", "@"+avdName)
-	cmd.Start()
+// AvdRun start the AVD with the passed avdName
+// Set coldBoot to true if you want to run AVD from cold state
+func AvdRun(avdName string, coldBoot bool) {
+	if coldBoot {
+		exec.Command("emulator", "@"+avdName, "-no-snapshot").Start()
+	} else {
+		exec.Command("emulator", "@"+avdName).Start()
+	}
 }
 
 // Wipe AVD emulator data

@@ -24,6 +24,7 @@ import (
 )
 
 var isWipe bool
+var isColdBoot bool
 
 var avdsCmd = &cobra.Command{
 	Use:   "avds [emulator name]",
@@ -37,7 +38,7 @@ var avdsCmd = &cobra.Command{
 		if len(args) == 0 {
 			showAvdSelection()
 		} else {
-			adb.AvdRun(args[0])
+			adb.AvdRun(args[0], isColdBoot)
 		}
 	},
 }
@@ -50,7 +51,7 @@ func showAvdsWipe() {
 func showAvdSelection() {
 	result := showAvdsPrompt("Select AVD to run")
 	fmt.Printf("Launching %s AVD", result)
-	adb.AvdRun(result)
+	adb.AvdRun(result, isColdBoot)
 }
 
 func showAvdsPrompt(caption string) string {
@@ -78,4 +79,5 @@ func showAvdsPrompt(caption string) string {
 func init() {
 	rootCmd.AddCommand(avdsCmd)
 	avdsCmd.Flags().BoolVarP(&isWipe, "wipe", "w", false, "Wipe AVD data")
+	avdsCmd.Flags().BoolVarP(&isColdBoot, "cold", "c", false, "Set running AVD in cold state")
 }
