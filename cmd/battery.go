@@ -24,7 +24,7 @@ var batteryCmd = &cobra.Command{
 	Use:   "battery",
 	Short: "Get device battery status",
 	Run: func(cmd *cobra.Command, args []string) {
-		adb.DumpSys("battery")
+		adb.DumpSysAndPrint("battery")
 	},
 }
 

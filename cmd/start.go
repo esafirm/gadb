@@ -18,8 +18,8 @@ import (
 	"fmt"
 
 	adb "github.com/esafirm/gadb/adb"
-	"github.com/spf13/cobra"
 	"github.com/esafirm/gadb/config"
+	"github.com/spf13/cobra"
 )
 
 // startCmd represents the start command
@@ -37,5 +37,5 @@ var startCmd = &cobra.Command{
 }
 
 func init() {
-	rootCmd.AddCommand(startCmd)
+	rootCmd.AddCommand(focusCmd)
 }

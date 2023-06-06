@@ -12,11 +12,11 @@ type CommandReturn struct {
 }
 
 func runWithPrint(name string, arg ...string) CommandReturn {
-	output, error := exec.Command(name, arg...).CombinedOutput()
-	if error == nil {
+	output, err := exec.Command(name, arg...).CombinedOutput()
+	if err == nil {
 		fmt.Println(string(output))
 	}
-	return CommandReturn{output, error}
+	return CommandReturn{output, err}
 }
 
 func runOnly(name string, arg ...string) CommandReturn {
@@ -106,8 +106,14 @@ func AvdWipe(avdName string) {
 	runWithPrint("emulator", "@"+avdName, "-wipe-data{")
 }
 
+// Run Dumpsys command and print the result
+func DumpSysAndPrint(moreCommand string) CommandReturn {
+	return runWithPrint("adb", "shell", "dumpsys", moreCommand)
+}
+
+// Run Dumpsys command and return the result
 func DumpSys(moreCommand string) CommandReturn {
-	return runWithPrint("adb shell dumpsys " + moreCommand)
+	return runOnly("adb", "shell", "dumpsys", moreCommand)
 }
 
 // Forward forward tcp port

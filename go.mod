@@ -16,7 +16,7 @@ require (
 	github.com/spf13/viper v1.4.0
 	github.com/tj/go-spin v1.1.0
 	github.com/tsenart/deadcode v0.0.0-20160724212837-210d2dc333e9 // indirect
-	golang.org/x/sys v0.0.0-20201020230747-6e5568b54d1a // indirect
+	golang.org/x/sys v0.8.0 // indirect
 	gopkg.in/alecthomas/kingpin.v3-unstable v3.0.0-20180810215634-df19058c872c // indirect
 	gopkg.in/yaml.v2 v2.3.0 // indirect
 )

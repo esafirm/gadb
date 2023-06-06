@@ -7,3 +7,5 @@ buildbin:
 	go build -o $(BIN_PATH)
 run: 
 	@go run main.go install ~/Desktop/app.apk
+run-focus:
+	@go run main.go focus
