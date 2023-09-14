@@ -15,15 +15,20 @@
 package cmd
 
 import (
-	"fmt"
 	"time"
 
 	adb "github.com/esafirm/gadb/adb"
 	"github.com/spf13/cobra"
 )
 
+// persistent mode to be on/off
 var persistent bool
+
+// if true, clear the persisten debug flag
 var clear bool
+
+// if true, restart the application
+var isRestart bool
 
 var debugCmd = &cobra.Command{
 	Use:   "debug",
@@ -44,14 +49,18 @@ func clearDebug(packageName string) {
 }
 
 func debug(isPersistent bool, packageName string) {
-	fmt.Println("is persistent", isPersistent)
 	adb.Stop(packageName)
 	time.Sleep(3 * time.Second)
 	adb.Debug(persistent, packageName)
+
+	if isRestart {
+		adb.Restart(packageName)
+	}
 }
 
 func init() {
 	rootCmd.AddCommand(debugCmd)
 	debugCmd.Flags().BoolVarP(&persistent, "persistent", "p", true, "Set waiting for debug mode until nodebug is triggered")
 	debugCmd.Flags().BoolVarP(&clear, "clear", "c", false, "Clear waiting debug status")
+	debugCmd.Flags().BoolVarP(&isRestart, "restart", "r", true, "Restart the application")
 }
