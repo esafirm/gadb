@@ -1,28 +1,8 @@
 package adb
 
 import (
-	"fmt"
 	"os/exec"
 )
-
-// CommandReturn have output and error of the command
-type CommandReturn struct {
-	Output []byte
-	Error  error
-}
-
-func runWithPrint(name string, arg ...string) CommandReturn {
-	output, err := exec.Command(name, arg...).CombinedOutput()
-	if err == nil {
-		fmt.Println(string(output))
-	}
-	return CommandReturn{output, err}
-}
-
-func runOnly(name string, arg ...string) CommandReturn {
-	output, err := exec.Command(name, arg...).CombinedOutput()
-	return CommandReturn{output, err}
-}
 
 // Uninstall application with following package name
 func Uninstall(packageName string) CommandReturn {
@@ -124,4 +104,14 @@ func Forward(port string) CommandReturn {
 // ForwardList return all forward list
 func ForwardList() CommandReturn {
 	return runOnly("adb", "forward", "--list")
+}
+
+// List down the package list installed in the device
+func ListPacakge() CommandReturn {
+	return runOnly("adb", "shell", "pm", "list", "packages")
+}
+
+// List down the 3rd party package list installed in the device
+func ListPackageThirdParty() CommandReturn {
+	return runOnly("adb", "shell", "pm", "list", "packages", "-3")
 }
