@@ -18,9 +18,9 @@ import (
 	"errors"
 	"os"
 
+	"github.com/esafirm/gadb/config"
 	promptui "github.com/manifoldco/promptui"
 	"github.com/spf13/cobra"
-	"github.com/esafirm/gadb/config"
 )
 
 // initCmd represents the init command
@@ -85,7 +85,7 @@ func askData() {
 func askQuestion(questionLabel string) (string, error) {
 	notEmptyValidation := func(input string) error {
 		if len(input) == 0 {
-			return errors.New("Answers cannot empty")
+			return errors.New("answers cannot be empty")
 		}
 		return nil
 	}
@@ -98,7 +98,7 @@ func askQuestion(questionLabel string) (string, error) {
 	result, err := prompt.Run()
 
 	if err != nil {
-		return "", errors.New("Promp failed")
+		return "", errors.New("promp failed")
 	}
 
 	return result, nil

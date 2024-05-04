@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io/ioutil"
+	"io/fs"
 	"os"
 )
 
@@ -17,7 +17,7 @@ type Config struct {
 
 func WriteConfig(data Config) {
 	dataJSON, err := json.Marshal(data)
-	_ = ioutil.WriteFile(fileName, dataJSON, 0644)
+	_ = os.WriteFile(fileName, dataJSON, fs.FileMode(0644))
 
 	if err != nil {
 		fmt.Println(err)
@@ -30,7 +30,7 @@ func ReadConfig() (Config, error) {
 	if !isConfigExist() {
 		return Config{}, errors.New("Config file doesn't exist. Create one using gadb init")
 	}
-	file, _ := ioutil.ReadFile(fileName)
+	file, _ := os.ReadFile(fileName)
 	config := Config{}
 	err := json.Unmarshal(file, &config)
 

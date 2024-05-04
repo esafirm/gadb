@@ -15,13 +15,13 @@
 package cmd
 
 import (
-	"errors"
 	"fmt"
 	"os"
 	"strings"
 
 	adb "github.com/esafirm/gadb/adb"
 	analyzer "github.com/esafirm/gadb/apkanalyzer"
+	"github.com/esafirm/gadb/utils"
 	pui "github.com/manifoldco/promptui"
 	"github.com/spf13/cobra"
 )
@@ -136,32 +136,11 @@ func canRecoverVersionDowngrade(apkPath string, text string) bool {
 	var isConfirmed bool = isYes
 	if isVersionDowngradeProblem && !isConfirmed {
 		message := fmt.Sprintf("%s already exist, do you want to uninstall first?", packageName)
-		isConfirmed = confirmUninstall(message)
+		isConfirmed = utils.ShowYesOrNoConfirmation(message)
 	}
 
 	if isConfirmed {
 		uninstall(packageName)
-	}
-	return false
-}
-
-func confirmUninstall(message string) bool {
-	validation := func(input string) error {
-		if input == "y" || input == "Y" || input == "n" || input == "N" {
-			return nil
-		}
-		return errors.New("Answer not valid")
-	}
-
-	prompt := pui.Prompt{
-		Label:    message + " [Y,n]",
-		Validate: validation,
-	}
-
-	result, _ := prompt.Run()
-
-	if result == "Y" || result == "y" {
-		return true
 	}
 	return false
 }
