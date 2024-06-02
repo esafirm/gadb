@@ -16,14 +16,16 @@ package cmd
 
 import (
 	"fmt"
-	"strings"
 
 	adb "github.com/esafirm/gadb/adb"
 	pui "github.com/manifoldco/promptui"
 	"github.com/spf13/cobra"
 )
 
+// Option: run wipe command to the selected AVD
 var isWipe bool
+
+// Option: run AVD in cold boot state
 var isColdBoot bool
 
 var avdsCmd = &cobra.Command{
@@ -55,17 +57,14 @@ func showAvdSelection() {
 }
 
 func showAvdsPrompt(caption string) string {
-	commandResult := adb.AvdList()
+	commandResult := adb.AvdListFormatted()
 	if commandResult.Error != nil {
 		panic(commandResult.Error)
 	}
 
-	avdList := strings.TrimSpace(string(commandResult.Output))
-	avdListSlice := strings.Split(avdList, "\n")
-
 	prompt := pui.Select{
 		Label: caption,
-		Items: avdListSlice,
+		Items: commandResult.AvdList,
 	}
 
 	_, result, err := prompt.Run()

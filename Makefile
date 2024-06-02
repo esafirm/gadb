@@ -8,4 +8,4 @@ buildbin:
 run: 
 	@go run main.go install ~/Desktop/app.apk
 run-dev:
-	@go run main.go instrumentation com.bandlab.bandlab.test
+	@go run main.go avds
