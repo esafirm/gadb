@@ -11,3 +11,9 @@ type PackageListCommandRetrun struct {
 	PackageList []string
 	Error       error
 }
+
+// AvdListCommandReturn have list of AVD(s) and error
+type AvdListCommandReturn struct {
+	AvdList []string
+	Error   error
+}

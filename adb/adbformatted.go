@@ -11,3 +11,13 @@ func ListPacakgesThirdPartyFormatted() PackageListCommandRetrun {
 		"package:",
 	)}
 }
+
+// List down AVD(s) and ignore other data not related to it such as
+// crash report path info
+func AvdListFormatted() AvdListCommandReturn {
+	commandReturn := AvdList()
+	if commandReturn.Error != nil {
+		return AvdListCommandReturn{Error: commandReturn.Error}
+	}
+	return AvdListCommandReturn{AvdList: splitAvdList(string(commandReturn.Output))}
+}

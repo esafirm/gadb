@@ -13,3 +13,17 @@ func splitPackageList(rawString string, trimmedPrefix string) []string {
 
 	return packages
 }
+
+func splitAvdList(rawString string) []string {
+	avds := strings.Split(strings.TrimSpace(rawString), "\n")
+
+	returnedAvds := []string{}
+
+	for _, avd := range avds {
+		if !strings.Contains(avd, "INFO") && !strings.Contains(avd, "|") {
+			returnedAvds = append(returnedAvds, avd)
+		}
+	}
+
+	return returnedAvds
+}
