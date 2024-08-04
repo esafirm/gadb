@@ -22,6 +22,7 @@ import (
 	adb "github.com/esafirm/gadb/adb"
 	analyzer "github.com/esafirm/gadb/apkanalyzer"
 	"github.com/esafirm/gadb/utils"
+	color "github.com/fatih/color"
 	pui "github.com/manifoldco/promptui"
 	"github.com/spf13/cobra"
 )
@@ -50,21 +51,29 @@ func showHelpAndExit(cmd *cobra.Command, errorMsg string) {
 }
 
 func runCommand(apkPath string) {
+	// Check if the file exist
+	if _, err := os.Stat(apkPath); os.IsNotExist(err) {
+		color.Red("File %s not found\n", apkPath)
+		os.Exit(1)
+	}
+
 	comamndReturn := adb.ReInstall(apkPath)
 	output := string(comamndReturn.Output)
 
-	println(output)
-
 	if comamndReturn.Error != nil {
 		if canRecoverVersionDowngrade(apkPath, output) {
+			color.Yellow(output)
 			runCommand(apkPath)
 			return
 		}
 		if shouldShowDevicePicker(output) {
+			color.Yellow(output)
 			showDevicePicker(apkPath)
 			return
 		}
 		fmt.Println(string(comamndReturn.Output))
+	} else {
+		println(output)
 	}
 }
 
@@ -82,11 +91,11 @@ func showDevicePicker(apkPath string) {
 		return
 	}
 
-	deviceID := strings.Split(result, "\t")[0]
+	deviceID := extractDeviceID(result)
 
 	if deviceID == "All" {
-		for _, id := range deviceChoice {
-			installTo(id, apkPath)
+		for _, rawId := range deviceChoice[1:] {
+			installTo(extractDeviceID(rawId), apkPath)
 		}
 	} else {
 		installTo(deviceID, apkPath)
@@ -148,6 +157,10 @@ func canRecoverVersionDowngrade(apkPath string, text string) bool {
 func uninstall(packageName string) {
 	fmt.Printf("Uninstalling %s ~\n", packageName)
 	adb.Uninstall(packageName)
+}
+
+func extractDeviceID(deviceInfo string) string {
+	return strings.Split(deviceInfo, "\t")[0]
 }
 
 func init() {
