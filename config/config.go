@@ -42,15 +42,24 @@ func isConfigExist() bool {
 	return !os.IsNotExist(err)
 }
 
-// GetPackageNameFromArgs take the first index of args as package or get the packagename
-// from config file
-func GetPackageNameFromArgs(args []string) (string, error) {
-	if len(args) == 0 {
-		config, err := ReadConfig()
-		if err != nil {
-			return "", err
-		}
-		return config.PackageName, nil
+// GetPackageNameOrDefault try to get the package name from config file or return default value
+func GetPackageNameOrDefault(defaultValue func() string) string {
+	return getConfigWithFallback(func(config Config) string {
+		return config.PackageName
+	}, defaultValue)
+}
+
+type fetcher func(Config) string
+
+func getConfigWithFallback(f fetcher, fallback func() string) string {
+	config, err := ReadConfig()
+	if err != nil {
+		return fallback()
 	}
-	return args[0], nil
+
+	fetched := f(config)
+	if fetched == "" {
+		return fallback()
+	}
+	return fetched
 }
