@@ -17,16 +17,21 @@ package cmd
 import (
 	adb "github.com/esafirm/gadb/adb"
 	"github.com/esafirm/gadb/config"
+	"github.com/esafirm/gadb/utils"
 	"github.com/spf13/cobra"
 )
 
 // clearCmd represents the clear command
 var clearCmd = &cobra.Command{
 	Use:   "clear or clear <application id> ",
-	Short: "Trigger clear data to your",
+	Short: "Trigger clear data to selected package",
 	Run: func(cmd *cobra.Command, args []string) {
-		packageName := args[0]
-		clearAppData(getPackageName(packageName))
+		if len(args) == 0 {
+			selectedPackage := getPackageName("")
+			clearAppData(selectedPackage)
+			return
+		}
+		clearAppData(getPackageName(args[0]))
 	},
 }
 
@@ -42,10 +47,10 @@ func clearAppData(packageName string) {
 }
 
 func getPackageName(packageName string) string {
-	if len(packageName) == 0 {
+	if packageName == "" {
 		config, err := config.ReadConfig()
-		if err != nil {
-			return ""
+		if err != nil || config.PackageName == "" {
+			return utils.SelectThirdPartyPackage()
 		}
 		return config.PackageName
 	}

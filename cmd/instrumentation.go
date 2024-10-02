@@ -51,7 +51,7 @@ var insCmd = &cobra.Command{
 			}
 			packageName = args[0]
 		} else if optPackageSelection {
-			packageName = selectPackage()
+			packageName = utils.SelectThirdPartyPackage()
 		} else {
 			config, err := config.ReadConfig()
 			if err != nil {
@@ -62,17 +62,6 @@ var insCmd = &cobra.Command{
 
 		return runInstrumentation(strings.TrimSpace(packageName), optDebug)
 	},
-}
-
-func selectPackage() string {
-	commandReturn := adb.ListPacakgesThirdPartyFormatted()
-	if commandReturn.Error != nil {
-		fmt.Println("Error getting package list:", commandReturn.Error)
-		return ""
-	}
-
-	_, selectedPacakge := utils.ShowSelection("Select package", commandReturn.PackageList)
-	return selectedPacakge
 }
 
 func selectInstrumentations(selectedPackage string) (string, error) {

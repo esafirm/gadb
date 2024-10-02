@@ -21,9 +21,10 @@ import (
 
 	adb "github.com/esafirm/gadb/adb"
 	analyzer "github.com/esafirm/gadb/apkanalyzer"
-	"github.com/esafirm/gadb/utils"
 	color "github.com/fatih/color"
 	pui "github.com/manifoldco/promptui"
+
+	"github.com/esafirm/gadb/utils"
 	"github.com/spf13/cobra"
 )
 
