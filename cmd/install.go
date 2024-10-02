@@ -52,6 +52,8 @@ func showHelpAndExit(cmd *cobra.Command, errorMsg string) {
 }
 
 func runCommand(apkPath string) {
+	color.Cyan("Installing %s…", apkPath)
+
 	// Check if the file exist
 	if _, err := os.Stat(apkPath); os.IsNotExist(err) {
 		color.Red("File %s not found\n", apkPath)
@@ -62,19 +64,19 @@ func runCommand(apkPath string) {
 	output := string(comamndReturn.Output)
 
 	if comamndReturn.Error != nil {
+		color.Yellow(extractErrorMessage(output))
+		color.Yellow("")
+
 		if canRecoverVersionDowngrade(apkPath, output) {
-			color.Yellow(output)
 			runCommand(apkPath)
 			return
 		}
 		if shouldShowDevicePicker(output) {
-			color.Yellow(output)
 			showDevicePicker(apkPath)
 			return
 		}
-		fmt.Println(string(comamndReturn.Output))
-	} else {
-		println(output)
+
+		color.Red("Cannot install %s", apkPath)
 	}
 }
 
@@ -145,23 +147,34 @@ func canRecoverVersionDowngrade(apkPath string, text string) bool {
 
 	var isConfirmed bool = isYes
 	if isVersionDowngradeProblem && !isConfirmed {
-		message := fmt.Sprintf("%s already exist, do you want to uninstall first?", packageName)
+		message := fmt.Sprintf("%s already exist, do you want to uninstall first?", color.CyanString(packageName))
 		isConfirmed = utils.ShowYesOrNoConfirmation(message)
 	}
 
 	if isConfirmed {
 		uninstall(packageName)
+		return true
 	}
 	return false
 }
 
 func uninstall(packageName string) {
-	fmt.Printf("Uninstalling %s ~\n", packageName)
+	fmt.Printf("Uninstalling %s…\n", color.CyanString(packageName))
 	adb.Uninstall(packageName)
 }
 
 func extractDeviceID(deviceInfo string) string {
 	return strings.Split(deviceInfo, "\t")[0]
+}
+
+func extractErrorMessage(output string) string {
+	lines := strings.Split(output, "\n")
+	for _, line := range lines {
+		if strings.Contains(line, "adb: failed") {
+			return line
+		}
+	}
+	return output
 }
 
 func init() {
