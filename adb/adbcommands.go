@@ -87,13 +87,15 @@ func AvdWipe(avdName string) {
 }
 
 // Run Dumpsys command and print the result
-func DumpSysAndPrint(moreCommand string) CommandReturn {
-	return runWithPrint("adb", "shell", "dumpsys", moreCommand)
+func DumpSysAndPrint(moreCommand ...string) CommandReturn {
+	completeCommand := append([]string{"shell", "dumpsys"}, moreCommand...)
+	return runWithPrint("adb", completeCommand...)
 }
 
 // Run Dumpsys command and return the result
-func DumpSys(moreCommand string) CommandReturn {
-	return runOnly("adb", "shell", "dumpsys", moreCommand)
+func DumpSys(moreCommand ...string) CommandReturn {
+	completeCommand := append([]string{"shell", "dumpsys"}, moreCommand...)
+	return runOnly("adb", completeCommand...)
 }
 
 // Forward forward tcp port

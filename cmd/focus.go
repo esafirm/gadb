@@ -15,10 +15,12 @@
 package cmd
 
 import (
+	"fmt"
 	"regexp"
 	"strings"
 
 	adb "github.com/esafirm/gadb/adb"
+	color "github.com/fatih/color"
 	"github.com/spf13/cobra"
 )
 
@@ -27,7 +29,7 @@ var focusCmd = &cobra.Command{
 	Use:   "focus",
 	Short: "Get the info about the current focused app",
 	Run: func(cmd *cobra.Command, args []string) {
-		result := adb.DumpSys("window displays")
+		result := adb.DumpSys("window", "displays")
 
 		if result.Error != nil {
 			println("Error: ", result.Error.Error())
@@ -39,12 +41,25 @@ var focusCmd = &cobra.Command{
 		focusWindowRegex := regexp.MustCompile(`mCurrentFocus=Window{(?P<focusInfo>.*)}`)
 		matches := focusWindowRegex.FindStringSubmatch(resultString)
 
-		println("Focus window: " + getSplitLastIndex(matches[1], " ", 1))
+		fmt.Printf("Focus window: %s\n", color.GreenString(getSplitLastIndex(matches[1], " ", 1)))
 
 		focusAppRegex := regexp.MustCompile(`mFocusedApp=ActivityRecord{(?P<focusInfo>.*)}`)
 		matches = focusAppRegex.FindStringSubmatch(resultString)
 
-		println("Focus app: " + getSplitLastIndex(matches[1], " ", 2))
+		fmt.Printf("Focus app: %s\n", color.GreenString(getSplitLastIndex(matches[1], " ", 2)))
+
+		resultString = string(adb.DumpSys("activity", "top").Output[:])
+		focusFragment := regexp.MustCompile(`Active Fragments:\n(.*){`)
+		matches = focusFragment.FindStringSubmatch(resultString)
+
+		// Check if there's any fragment
+		if len(matches) < 2 {
+			fmt.Printf("Focus fragment: %s\n", color.GreenString("-"))
+		} else {
+			fragment := strings.TrimSpace(matches[1])
+			fmt.Printf("Focus fragment: %s\n", color.GreenString(fragment))
+		}
+
 	},
 }
 
