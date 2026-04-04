@@ -16,9 +16,12 @@ package cmd
 
 import (
 	"errors"
+	"fmt"
 	"os"
+	"strings"
 
 	"github.com/esafirm/gadb/config"
+	color "github.com/fatih/color"
 	promptui "github.com/manifoldco/promptui"
 	"github.com/spf13/cobra"
 )
@@ -60,48 +63,106 @@ func validateDirectory() {
 }
 
 func askData() {
-	questions := []string{
-		"Project pacakge",
-	}
-	answers := []string{}
-
-	questionIndex := 0
-	for questionIndex < len(questions) {
-		result, err := askQuestion(questions[questionIndex])
-
-		if err == nil {
-			answers = append(answers, result)
-			questionIndex++
-		}
-	}
-
-	config.WriteConfig(
-		config.Config{
-			PackageName: answers[0],
+	// Ask for package name
+	packagePrompt := promptui.Prompt{
+		Label:    "Project package",
+		Validate: func(input string) error {
+			if len(input) == 0 {
+				return errors.New("package name cannot be empty")
+			}
+			return nil
 		},
-	)
-}
-
-func askQuestion(questionLabel string) (string, error) {
-	notEmptyValidation := func(input string) error {
-		if len(input) == 0 {
-			return errors.New("answers cannot be empty")
-		}
-		return nil
 	}
 
-	prompt := promptui.Prompt{
-		Label:    questionLabel,
-		Validate: notEmptyValidation,
-	}
-
-	result, err := prompt.Run()
-
+	packageName, err := packagePrompt.Run()
 	if err != nil {
-		return "", errors.New("promp failed")
+		color.Red("Failed to get package name: %v", err)
+		return
 	}
 
-	return result, nil
+	// Ask if user wants to configure AI
+	aiPrompt := promptui.Prompt{
+		Label:     "Configure AI for crash analysis? [Y/n]",
+		IsConfirm: true,
+	}
+
+	configureAI, _ := aiPrompt.Run()
+
+	// Build config
+	cfg := config.Config{
+		PackageName: packageName,
+	}
+
+	// Configure AI if requested
+	if configureAI == "" || strings.ToLower(configureAI) == "y" {
+		// Provider selection
+		providerSelect := promptui.Select{
+			Label: "Select AI Provider",
+			Items: []string{"gemini", "anthropic", "openai"},
+		}
+
+		_, provider, err := providerSelect.Run()
+		if err != nil {
+			color.Yellow("Skipping AI configuration due to error: %v", err)
+		} else {
+			var apiKey string
+
+			// API Key input (required for Anthropic/OpenAI, optional for Gemini)
+			if provider != "gemini" {
+				apiKeyPrompt := promptui.Prompt{
+					Label: "Enter API Key",
+					Mask:  '*',
+					Validate: func(input string) error {
+						if len(input) == 0 {
+							return errors.New("API key cannot be empty")
+						}
+						return nil
+					},
+				}
+
+				apiKey, err = apiKeyPrompt.Run()
+				if err != nil {
+					color.Yellow("Skipping AI configuration")
+					return
+				}
+			} else {
+				color.HiBlack("Note: Gemini uses OAuth authentication - no API key needed")
+				color.HiBlack("Make sure you're logged in with 'gemini auth login'")
+			}
+
+			// Set default model based on provider
+			var defaultModel string
+			switch provider {
+			case "anthropic":
+				defaultModel = "claude-3-sonnet-20240229"
+			case "openai":
+				defaultModel = "gpt-4"
+			case "gemini":
+				defaultModel = "gemini-2.0-flash-exp"
+			}
+
+			cfg.AI = config.AIConfig{
+				Provider:    provider,
+				APIKey:      apiKey,
+				Model:       defaultModel,
+				MaxTokens:   1000,
+				Temperature: 0.7,
+			}
+
+			color.Green("✓ AI configuration added")
+		}
+	}
+
+	// Write config
+	config.WriteConfig(cfg)
+
+	color.Green("✓ Configuration saved successfully!")
+	fmt.Println()
+	if cfg.AI.APIKey != "" || cfg.AI.Provider == "gemini" {
+		color.Green("✓ AI is configured - you can now use 'gadb analyze --ai'")
+	} else {
+		color.HiBlack("Run 'gadb config --ai' to configure AI for crash analysis")
+	}
 }
 
 func init() {
