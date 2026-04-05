@@ -37,8 +37,11 @@ func PackageName(apkPath string) (string, error) {
 		return "", err
 	}
 
-	r, _ := regexp.Compile("package=\"(.*)\"")
+	r, _ := regexp.Compile(`package="([^"]*)"`)
 	result := r.FindStringSubmatch(string(output))
 
-	return result[1], nil
+	if len(result) > 1 {
+		return result[1], nil
+	}
+	return "", fmt.Errorf("package name not found in manifest")
 }
