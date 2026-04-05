@@ -20,16 +20,22 @@ type AnalysisRequest struct {
 	ThreadID     string
 }
 
+// PerformanceRequest represents a performance analysis request
+type PerformanceRequest struct {
+	Logs      string
+	IsStartup bool
+}
+
 // AnalysisResponse represents the AI analysis response
 type AnalysisResponse struct {
-	Cause        string   `json:"cause"`
-	Suggestions  []string `json:"suggestions"`
-	Severity     string   `json:"severity"`      // "low", "medium", "high", "critical"
-	Keywords     []string `json:"keywords"`      // Important keywords from the crash
-	Category     string   `json:"category"`      // e.g., "NullPointerException", "OutOfMemoryError", etc.
-	Fixable      bool     `json:"fixable"`       // Whether this is likely a code issue
-	Explanation  string   `json:"explanation"`   // Detailed explanation
-	NextSteps    string   `json:"nextSteps"`     // What to do next
+	Cause       string   `json:"cause"`
+	Suggestions []string `json:"suggestions"`
+	Severity    string   `json:"severity"`    // "low", "medium", "high", "critical"
+	Keywords    []string `json:"keywords"`    // Important keywords from the crash
+	Category    string   `json:"category"`    // e.g., "NullPointerException", "OutOfMemoryError", etc.
+	Fixable     bool     `json:"fixable"`     // Whether this is likely a code issue
+	Explanation string   `json:"explanation"` // Detailed explanation
+	NextSteps   string   `json:"nextSteps"`   // What to do next
 }
 
 // AnthropicRequest represents a request to Anthropic's API
@@ -64,7 +70,7 @@ type OpenAIRequest struct {
 
 // OpenAIResponse represents a response from OpenAI's API
 type OpenAIResponse struct {
-	ID      string   `json:"id"`
+	ID      string `json:"id"`
 	Choices []struct {
 		Message struct {
 			Content string `json:"content"`
@@ -84,21 +90,47 @@ func AnalyzeCrash(request AnalysisRequest) (*AnalysisResponse, error) {
 		if aiConfig.APIKey == "" {
 			return nil, fmt.Errorf("AI API key not configured. Run 'gadb config --ai' to set it up")
 		}
-		return analyzeWithAnthropic(request, aiConfig)
+		return analyzeWithAnthropic(buildPrompt(request), aiConfig)
 	case "openai":
 		if aiConfig.APIKey == "" {
 			return nil, fmt.Errorf("AI API key not configured. Run 'gadb config --ai' to set it up")
 		}
-		return analyzeWithOpenAI(request, aiConfig)
+		return analyzeWithOpenAI(buildPrompt(request), aiConfig)
 	case "gemini":
-		return analyzeWithGeminiCLI(request, aiConfig)
+		return analyzeWithGeminiCLI(buildPrompt(request), aiConfig)
 	default:
 		return nil, fmt.Errorf("unsupported AI provider: %s", aiConfig.Provider)
 	}
 }
 
-func analyzeWithAnthropic(request AnalysisRequest, aiConfig config.AIConfig) (*AnalysisResponse, error) {
-	prompt := buildPrompt(request)
+// AnalyzePerformance performs AI analysis on performance logs
+func AnalyzePerformance(request PerformanceRequest) (*AnalysisResponse, error) {
+	aiConfig, err := config.GetAIConfig()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get AI config: %w", err)
+	}
+
+	prompt := buildPerformancePrompt(request)
+
+	switch strings.ToLower(aiConfig.Provider) {
+	case "anthropic":
+		if aiConfig.APIKey == "" {
+			return nil, fmt.Errorf("AI API key not configured. Run 'gadb config --ai' to set it up")
+		}
+		return analyzeWithAnthropic(prompt, aiConfig)
+	case "openai":
+		if aiConfig.APIKey == "" {
+			return nil, fmt.Errorf("AI API key not configured. Run 'gadb config --ai' to set it up")
+		}
+		return analyzeWithOpenAI(prompt, aiConfig)
+	case "gemini":
+		return analyzeWithGeminiCLI(prompt, aiConfig)
+	default:
+		return nil, fmt.Errorf("unsupported AI provider: %s", aiConfig.Provider)
+	}
+}
+
+func analyzeWithAnthropic(prompt string, aiConfig config.AIConfig) (*AnalysisResponse, error) {
 
 	anthropicReq := AnthropicRequest{
 		Model:     aiConfig.Model,
@@ -158,15 +190,13 @@ func analyzeWithAnthropic(request AnalysisRequest, aiConfig config.AIConfig) (*A
 	return parseAnalysisResponse(anthropicResp.Content[0].Text)
 }
 
-func analyzeWithOpenAI(request AnalysisRequest, aiConfig config.AIConfig) (*AnalysisResponse, error) {
-	prompt := buildPrompt(request)
-
+func analyzeWithOpenAI(prompt string, aiConfig config.AIConfig) (*AnalysisResponse, error) {
 	openaiReq := OpenAIRequest{
-		Model:       aiConfig.Model,
+		Model: aiConfig.Model,
 		Messages: []Message{
 			{
 				Role:    "system",
-				Content: "You are an expert Android crash analyzer. Analyze crash logs and provide actionable insights.",
+				Content: "You are an expert Android performance analyzer. Analyze logcat output and provide actionable insights on performance issues, startup time, and resource usage.",
 			},
 			{
 				Role:    "user",
@@ -247,8 +277,39 @@ Please provide a JSON response in the following format:
 Focus on being concise and practical. The suggestions should be actionable steps the developer can take.`, request.CrashSummary, request.StackTrace, request.ProcessID, request.ThreadID)
 }
 
-func analyzeWithGeminiCLI(request AnalysisRequest, aiConfig config.AIConfig) (*AnalysisResponse, error) {
-	prompt := buildPrompt(request)
+func buildPerformancePrompt(request PerformanceRequest) string {
+	analysisType := "performance issues"
+	if request.IsStartup {
+		analysisType = "app startup performance"
+	}
+
+	return fmt.Sprintf(`Analyze these Android logcat logs for %s and provide actionable insights.
+Look for:
+- Slow operations (e.g., "Displayed ... +345ms", "Slow operation", etc.)
+- Blocking UI threads (ANRs, "The application may be doing too much work on its main thread")
+- Resource contention or heavy GC (Garbage Collection)
+- Network latencies or failures
+- Activity/Fragment lifecycle delays
+
+Logs:
+%s
+
+Please provide a JSON response in the following format:
+{
+  "cause": "Summary of the most significant performance bottleneck identified",
+  "suggestions": ["List of 2-3 actionable suggestions to improve performance"],
+  "severity": "low|medium|high|critical",
+  "keywords": ["keyword1", "keyword2"],
+  "category": "e.g., StartupTime, MainThreadBlocking, MemoryManagement, NetworkLatency",
+  "fixable": true/false,
+  "explanation": "Detailed technical analysis of the performance logs provided",
+  "nextSteps": "What should the developer do next to optimize?"
+}
+
+Focus on being concise and practical.`, analysisType, request.Logs)
+}
+
+func analyzeWithGeminiCLI(prompt string, aiConfig config.AIConfig) (*AnalysisResponse, error) {
 
 	// Build gemini-cli command
 	var cmd *exec.Cmd

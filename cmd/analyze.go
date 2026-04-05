@@ -22,6 +22,7 @@ import (
 
 	adb "github.com/esafirm/gadb/adb"
 	"github.com/esafirm/gadb/ai"
+	"github.com/esafirm/gadb/config"
 	color "github.com/fatih/color"
 
 	"github.com/spf13/cobra"
@@ -34,13 +35,16 @@ var (
 	useAI       bool
 	aiProvider  string
 	verbose     bool
+	perfOnly    bool
+	startupOnly bool
+	packageName string
 )
 
 // analyzeCmd represents the analyze command
 var analyzeCmd = &cobra.Command{
 	Use:   "analyze",
 	Short: "Analyze device logs with AI insights",
-	Long:  `Analyze logcat output to detect crashes, anomalies, and provide actionable insights.`,
+	Long:  `Analyze logcat output to detect crashes, anomalies, performance issues, and provide actionable insights.`,
 	Run: func(cmd *cobra.Command, args []string) {
 		analyzeLogs()
 	},
@@ -49,22 +53,40 @@ var analyzeCmd = &cobra.Command{
 func init() {
 	rootCmd.AddCommand(analyzeCmd)
 
-	analyzeCmd.Flags().BoolVarP(&crashesOnly, "crashes", "c", true, "Focus on crash logs only")
+	analyzeCmd.Flags().BoolVarP(&crashesOnly, "crashes", "c", false, "Focus on crash logs only")
+	analyzeCmd.Flags().BoolVarP(&perfOnly, "performance", "p", false, "Analyze performance issues")
+	analyzeCmd.Flags().BoolVarP(&startupOnly, "startup", "s", false, "Analyze app startup performance")
 	analyzeCmd.Flags().BoolVarP(&recentOnly, "recent", "r", false, "Only analyze recent logs")
 	analyzeCmd.Flags().StringVarP(&timeRange, "time", "t", "", "Time range for logs (e.g., '5m', '1h')")
 	analyzeCmd.Flags().BoolVarP(&useAI, "ai", "a", false, "Use AI for analysis (requires API key or OAuth)")
 	analyzeCmd.Flags().StringVar(&aiProvider, "provider", "gemini", "AI provider: gemini, anthropic, or openai")
 	analyzeCmd.Flags().BoolVarP(&verbose, "verbose", "v", false, "Show verbose output")
+	analyzeCmd.Flags().StringVarP(&packageName, "package", "k", "", "Filter logs by package name (e.g., 'com.example.app')")
 }
 
 func analyzeLogs() {
 	color.Cyan("Analyzing device logs...")
 
+	// Get package name from flag or config
+	if packageName == "" {
+		packageName = config.GetPackageNameOrDefault(func() string {
+			return ""
+		})
+	}
+
+	// Default to crashes if no specific analysis requested
+	if !crashesOnly && !perfOnly && !startupOnly {
+		crashesOnly = true
+	}
+
 	if verbose {
 		color.HiBlack("Crashes only: %v", crashesOnly)
+		color.HiBlack("Performance only: %v", perfOnly)
+		color.HiBlack("Startup only: %v", startupOnly)
 		color.HiBlack("Recent only: %v", recentOnly)
 		color.HiBlack("Time range: %s", timeRange)
 		color.HiBlack("Use AI: %v", useAI)
+		color.HiBlack("Package: %s", packageName)
 	}
 
 	// Get logcat output
@@ -72,7 +94,13 @@ func analyzeLogs() {
 
 	if crashesOnly {
 		analyzeCrashes(logs)
-	} else {
+	}
+
+	if perfOnly || startupOnly {
+		analyzePerformance(logs, startupOnly)
+	}
+
+	if !crashesOnly && !perfOnly && !startupOnly {
 		analyzeAllLogs(logs)
 	}
 }
@@ -82,6 +110,14 @@ func captureLogs() string {
 
 	// Build logcat command arguments
 	logcatArgs = append(logcatArgs, "logcat", "-d") // -d for dump current buffer
+
+	var pid string
+	if packageName != "" {
+		pid = getPidForPackage(packageName)
+		if pid != "" && verbose {
+			color.HiBlack("Found PID %s for package %s", pid, packageName)
+		}
+	}
 
 	if recentOnly {
 		logcatArgs = append(logcatArgs, "-t", "500") // Last 500 lines
@@ -114,6 +150,14 @@ func captureLogs() string {
 	}
 
 	return output
+}
+
+func getPidForPackage(pkg string) string {
+	result := adb.RunOnly("adb", "shell", "pidof", pkg)
+	if result.Error != nil {
+		return ""
+	}
+	return strings.TrimSpace(string(result.Output))
 }
 
 func parseTimeRange(timeRange string) string {
@@ -204,7 +248,120 @@ func analyzeCrashes(logs string) {
 
 func analyzeAllLogs(logs string) {
 	// For full log analysis, we'll need more sophisticated logic
-	color.Yellow("Full log analysis not yet implemented. Use --crashes flag for crash analysis.")
+	color.Yellow("Full log analysis not yet implemented. Use --crashes or --performance flags.")
+}
+
+func analyzePerformance(logs string, isStartup bool) {
+	if verbose {
+		color.HiBlack("Extracting performance info from logs (length: %d)...", len(logs))
+	}
+
+	perfLogs := extractPerformanceLogs(logs, isStartup)
+
+	if perfLogs == "" {
+		color.Green("✓ No obvious performance issues found in the logs!")
+		return
+	}
+
+	if isStartup {
+		color.Yellow("🚀 App Startup Performance Analysis:")
+	} else {
+		color.Yellow("⚡ Performance Analysis:")
+	}
+
+	if useAI {
+		color.HiBlack("   Requesting AI analysis...")
+		request := ai.PerformanceRequest{
+			Logs:      perfLogs,
+			IsStartup: isStartup,
+		}
+
+		response, err := ai.AnalyzePerformance(request)
+		if err != nil {
+			color.Red("   ❌ AI analysis failed: %v", err)
+			fmt.Println()
+			color.HiBlack("   Relevant logs found:")
+			fmt.Println(perfLogs)
+			return
+		}
+
+		fmt.Println()
+		color.Cyan("   🤖 AI Analysis:")
+		fmt.Printf("   %s\n", ai.FormatAnalysisResponse(response))
+	} else {
+		fmt.Println()
+		color.HiBlack("   Relevant logs found:")
+		fmt.Println(perfLogs)
+		fmt.Println()
+		color.Yellow("💡 Run with --ai flag to get AI-powered performance analysis")
+	}
+}
+
+func extractPerformanceLogs(logs string, isStartup bool) string {
+	var relevantLines []string
+	lines := strings.Split(logs, "\n")
+
+	perfPatterns := []string{
+		"Displayed",      // Activity launch time
+		"Slow operation", // General slow operations
+		"The application may be doing too much work", // Choreographer/Main thread
+		"GC_",                              // Dalvik/ART GC
+		"GC ",                              // General GC
+		"freed",                            // Memory freed
+		"ANR in",                           // ANRs
+		"wait for the debugger",            // Debugger wait
+		"Taking too long",                  // General timeout
+		"long time",                        // General slowness
+		"Waited for",                       // Wait time
+		"Skipped",                          // Choreographer skipped frames
+		"Background concurrent copying GC", // Heavy GC
+	}
+
+	startupPatterns := []string{
+		"ActivityManager: Start proc",
+		"ActivityManager: Displayed",
+		"ActivityThread: bindApplication",
+		"ActivityThread: installProvider",
+		"Zygote: Process",
+	}
+
+	patterns := perfPatterns
+	if isStartup {
+		patterns = startupPatterns
+	}
+
+	// If we have a package name, try to get its PID to broaden filtering
+	pid := ""
+	if packageName != "" {
+		pid = getPidForPackage(packageName)
+	}
+
+	for _, line := range lines {
+		// If filtering by package, line must contain package name or PID
+		if packageName != "" {
+			if !strings.Contains(line, packageName) && (pid == "" || !strings.Contains(line, pid)) {
+				// Special case: "Displayed" lines often contain the component name but might not match full package
+				// "ActivityManager: Displayed com.example/.MainActivity: +345ms"
+				if !strings.Contains(line, "Displayed") {
+					continue
+				}
+			}
+		}
+
+		for _, pattern := range patterns {
+			if strings.Contains(line, pattern) {
+				relevantLines = append(relevantLines, line)
+				break
+			}
+		}
+	}
+
+	// Limit to last 50 relevant lines to avoid overwhelming the AI
+	if len(relevantLines) > 50 {
+		relevantLines = relevantLines[len(relevantLines)-50:]
+	}
+
+	return strings.Join(relevantLines, "\n")
 }
 
 // Crash represents a detected crash in the logs
@@ -249,9 +406,11 @@ func extractCrashes(logs string) []Crash {
 		}
 
 		if isCrashStart {
-			// Save previous crash if exists
+			// Save previous crash if exists and matches package filter
 			if currentCrash != nil && currentCrash.StackTrace != "" {
-				crashes = append(crashes, *currentCrash)
+				if shouldIncludeCrash(currentCrash, packageName) {
+					crashes = append(crashes, *currentCrash)
+				}
 			}
 
 			currentCrash = &Crash{
@@ -277,7 +436,9 @@ func extractCrashes(logs string) []Crash {
 			} else if line == "" || strings.HasPrefix(line, "-----") || strings.Contains(line, "DEBUG") {
 				// End of stack trace
 				if currentCrash.StackTrace != "" {
-					crashes = append(crashes, *currentCrash)
+					if shouldIncludeCrash(currentCrash, packageName) {
+						crashes = append(crashes, *currentCrash)
+					}
 					currentCrash = nil
 				}
 				collectingStackTrace = false
@@ -285,12 +446,22 @@ func extractCrashes(logs string) []Crash {
 		}
 	}
 
-	// Add the last crash if we were collecting one
+	// Add the last crash if we were collecting one and it matches the package filter
 	if currentCrash != nil && currentCrash.StackTrace != "" {
-		crashes = append(crashes, *currentCrash)
+		if shouldIncludeCrash(currentCrash, packageName) {
+			crashes = append(crashes, *currentCrash)
+		}
 	}
 
 	return crashes
+}
+
+func shouldIncludeCrash(crash *Crash, pkg string) bool {
+	if pkg == "" {
+		return true
+	}
+	// Check if package name is mentioned in summary or stack trace
+	return strings.Contains(crash.Summary, pkg) || strings.Contains(crash.StackTrace, pkg)
 }
 
 func extractTimestamp(line string) time.Time {

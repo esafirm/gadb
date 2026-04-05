@@ -5,6 +5,49 @@ import (
 	"testing"
 )
 
+func TestExtractPerformanceLogs(t *testing.T) {
+	tests := []struct {
+		name      string
+		logs      string
+		isStartup bool
+		wantLines int
+		contains  string
+	}{
+		{
+			name: "performance logs",
+			logs: `04-01 12:34:56.789 12345 12345 I ActivityManager: Displayed com.example/.MainActivity: +345ms
+04-01 12:35:00.123 12345 12345 W Choreographer: Skipped 45 frames! The application may be doing too much work on its main thread.
+04-01 12:35:05.456 12345 12345 I dalvikvm: GC_CONCURRENT freed 2048K, 20% free 8192K/10240K, paused 2ms+3ms, total 10ms`,
+			isStartup: false,
+			wantLines: 3,
+			contains:  "Skipped 45 frames",
+		},
+		{
+			name: "startup logs",
+			logs: `04-01 12:34:56.000 12345 12345 I ActivityManager: Start proc 12345:com.example/u0a123 for activity com.example/.MainActivity
+04-01 12:34:56.789 12345 12345 I ActivityManager: Displayed com.example/.MainActivity: +345ms`,
+			isStartup: true,
+			wantLines: 2,
+			contains:  "Start proc",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := extractPerformanceLogs(tt.logs, tt.isStartup)
+			lines := strings.Split(result, "\n")
+
+			if len(lines) != tt.wantLines {
+				t.Errorf("extractPerformanceLogs() returned %d lines, want %d", len(lines), tt.wantLines)
+			}
+
+			if !strings.Contains(result, tt.contains) {
+				t.Errorf("extractPerformanceLogs() output does not contain %q", tt.contains)
+			}
+		})
+	}
+}
+
 func TestParseTimeRange(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -43,6 +86,59 @@ func TestParseTimeRange(t *testing.T) {
 			result := parseTimeRange(tt.input)
 			if result != tt.expected {
 				t.Errorf("parseTimeRange(%q) = %q, want %q", tt.input, result, tt.expected)
+			}
+		})
+	}
+}
+
+func TestShouldIncludeCrash(t *testing.T) {
+	tests := []struct {
+		name     string
+		crash    Crash
+		pkg      string
+		expected bool
+	}{
+		{
+			name: "matches package in summary",
+			crash: Crash{
+				Summary: "FATAL EXCEPTION: com.example.app",
+			},
+			pkg:      "com.example.app",
+			expected: true,
+		},
+		{
+			name: "matches package in stack trace",
+			crash: Crash{
+				Summary:    "FATAL EXCEPTION: main",
+				StackTrace: "at com.example.app.MainActivity.onCreate(MainActivity.java:10)",
+			},
+			pkg:      "com.example.app",
+			expected: true,
+		},
+		{
+			name: "no match",
+			crash: Crash{
+				Summary:    "FATAL EXCEPTION: main",
+				StackTrace: "at com.other.app.MainActivity.onCreate(MainActivity.java:10)",
+			},
+			pkg:      "com.example.app",
+			expected: false,
+		},
+		{
+			name: "empty package matches all",
+			crash: Crash{
+				Summary: "FATAL EXCEPTION: main",
+			},
+			pkg:      "",
+			expected: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := shouldIncludeCrash(&tt.crash, tt.pkg)
+			if result != tt.expected {
+				t.Errorf("shouldIncludeCrash() = %v, want %v", result, tt.expected)
 			}
 		})
 	}
