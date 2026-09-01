@@ -7,10 +7,21 @@ import (
 	"time"
 )
 
-const DefaultTimeout = 5 * time.Second
+const DefaultTimeout = 10 * time.Second
 
 func runWithPrint(name string, arg ...string) CommandReturn {
-	ctx, cancel := context.WithTimeout(context.Background(), DefaultTimeout)
+	return runWithPrintTimeout(DefaultTimeout, name, arg...)
+}
+
+func runWithPrintTimeout(timeout time.Duration, name string, arg ...string) CommandReturn {
+	var ctx context.Context
+	var cancel context.CancelFunc
+
+	if timeout <= 0 {
+		ctx, cancel = context.WithCancel(context.Background())
+	} else {
+		ctx, cancel = context.WithTimeout(context.Background(), timeout)
+	}
 	defer cancel()
 
 	output, err := exec.CommandContext(ctx, name, arg...).CombinedOutput()

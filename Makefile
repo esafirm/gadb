@@ -1,6 +1,8 @@
 BIN_PATH=$(GOPATH)/bin/gadb
 
-all: build 
+.PHONY: all build buildbin run run-dev
+
+all: build
 build:
 	go build -o gadb -v
 buildbin: 

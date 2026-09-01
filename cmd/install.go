@@ -18,6 +18,7 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"time"
 
 	adb "github.com/esafirm/gadb/adb"
 	analyzer "github.com/esafirm/gadb/apkanalyzer"
@@ -29,6 +30,8 @@ import (
 )
 
 var isYes bool
+var isVerbose bool
+var isNoTimeout bool
 
 // installCmd represents the install command
 var installCmd = &cobra.Command{
@@ -60,11 +63,21 @@ func runCommand(apkPath string) {
 		os.Exit(1)
 	}
 
-	comamndReturn := adb.ReInstall(apkPath)
+	var comamndReturn adb.CommandReturn
+	if isNoTimeout {
+		comamndReturn = adb.ReInstallWithTimeout(apkPath, -1*time.Second)
+	} else {
+		comamndReturn = adb.ReInstall(apkPath)
+	}
 	output := string(comamndReturn.Output)
 
 	if comamndReturn.Error != nil {
-		color.Yellow(extractErrorMessage(output))
+		if isVerbose {
+			color.Red("Error: %v", comamndReturn.Error)
+			color.Yellow("Output: %s", output)
+		} else {
+			color.Yellow(extractErrorMessage(output))
+		}
 		color.Yellow("")
 
 		if canRecoverVersionDowngrade(apkPath, output) {
@@ -107,7 +120,22 @@ func showDevicePicker(apkPath string) {
 
 func installTo(deviceID string, apkPath string) {
 	fmt.Println("Installing to " + deviceID)
-	adb.InstallTo(deviceID, apkPath)
+	var comamndReturn adb.CommandReturn
+	if isNoTimeout {
+		comamndReturn = adb.InstallToWithTimeout(deviceID, apkPath, -1*time.Second)
+	} else {
+		comamndReturn = adb.InstallTo(deviceID, apkPath)
+	}
+	output := string(comamndReturn.Output)
+
+	if comamndReturn.Error != nil {
+		if isVerbose {
+			color.Red("Error: %v", comamndReturn.Error)
+			color.Yellow("Output: %s", output)
+		} else {
+			color.Yellow(extractErrorMessage(output))
+		}
+	}
 }
 
 func getDeviceChoice() []string {
@@ -170,7 +198,7 @@ func extractDeviceID(deviceInfo string) string {
 func extractErrorMessage(output string) string {
 	lines := strings.Split(output, "\n")
 	for _, line := range lines {
-		if strings.Contains(line, "adb: failed") {
+		if strings.Contains(line, "adb: failed") || strings.Contains(line, "Failure [") {
 			return line
 		}
 	}
@@ -179,5 +207,7 @@ func extractErrorMessage(output string) string {
 
 func init() {
 	rootCmd.AddCommand(installCmd)
-	mockCmd.Flags().BoolVarP(&isYes, "yes", "y", false, "Set auto confirm")
+	installCmd.Flags().BoolVarP(&isYes, "yes", "y", false, "Set auto confirm")
+	installCmd.Flags().BoolVarP(&isVerbose, "verbose", "v", false, "Show verbose error message")
+	installCmd.Flags().BoolVarP(&isNoTimeout, "no-timeout", "", false, "Disable timeout for long running install")
 }

@@ -2,6 +2,7 @@ package adb
 
 import (
 	"os/exec"
+	"time"
 )
 
 // Uninstall application with following package name
@@ -18,9 +19,17 @@ func ReInstall(apkPath string) CommandReturn {
 	return runWithPrint("adb", "install", "-r", apkPath)
 }
 
+func ReInstallWithTimeout(apkPath string, timeout time.Duration) CommandReturn {
+	return runWithPrintTimeout(timeout, "adb", "install", "-r", apkPath)
+}
+
 // InstallTo install APK to the specific device
 func InstallTo(deviceID string, apkPath string) CommandReturn {
 	return runWithPrint("adb", "-s", deviceID, "install", apkPath)
+}
+
+func InstallToWithTimeout(deviceID string, apkPath string, timeout time.Duration) CommandReturn {
+	return runWithPrintTimeout(timeout, "adb", "-s", deviceID, "install", apkPath)
 }
 
 // Debug enable waiting debug mode in android
