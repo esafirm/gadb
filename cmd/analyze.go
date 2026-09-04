@@ -373,6 +373,46 @@ type Crash struct {
 	ThreadID   string
 }
 
+func isStackTraceLine(line string) bool {
+	// Stripped format: "    at com.example.Foo.bar(Foo.java:10)" becomes "at ..." after TrimSpace.
+	if strings.HasPrefix(line, "at ") {
+		return true
+	}
+	// Real threadtime logcat keeps the timestamp/pid/tag prefix, e.g.
+	// "08-15 12:34:56.789 12345 12345 E AndroidRuntime: \tat com.example.Foo.bar(Foo.java:10)".
+	// Look for a stack frame inside the message portion.
+	if (strings.Contains(line, " at ") || strings.Contains(line, "\tat ")) &&
+		strings.Contains(line, "(") && strings.Contains(line, ")") {
+		return true
+	}
+	if strings.Contains(line, "Caused by:") {
+		return true
+	}
+	if strings.Contains(line, "Suppressed:") {
+		return true
+	}
+	// "... 12 more" truncated frames.
+	if strings.Contains(line, "...") && strings.Contains(line, "more") {
+		return true
+	}
+	// Java/Kotlin exception header, e.g.
+	// "E AndroidRuntime: java.lang.NullPointerException: Attempt to ..."
+	if strings.Contains(line, "AndroidRuntime:") &&
+		(strings.Contains(line, "Exception") || strings.Contains(line, "Error:")) {
+		return true
+	}
+	// Native crash frames and headers (logcat tag DEBUG).
+	if strings.Contains(line, "backtrace:") ||
+		strings.Contains(line, "Abort message:") ||
+		strings.Contains(line, "Build fingerprint:") {
+		return true
+	}
+	if strings.Contains(line, " pc ") && strings.Contains(line, ".so") {
+		return true
+	}
+	return false
+}
+
 func extractCrashes(logs string) []Crash {
 	var crashes []Crash
 	lines := strings.Split(logs, "\n")
@@ -391,6 +431,8 @@ func extractCrashes(logs string) []Crash {
 		"SIGBUS",
 		"SIGILL",
 		"DEBUG: Crash",
+		"DEBUG: ***",
+		"DEBUG: Abort message",
 	}
 
 	for _, line := range lines {
@@ -425,15 +467,18 @@ func extractCrashes(logs string) []Crash {
 		// Extract process and thread info
 		if currentCrash != nil && (strings.Contains(line, "PID:") || strings.Contains(line, "Process:")) {
 			extractProcessInfo(line, currentCrash)
+			// Keep the process line so package filtering works even when the
+			// package only appears in the "Process:" line and not in the
+			// summary or stack frames.
+			currentCrash.StackTrace += line + "\n"
 			continue
 		}
 
 		// Collect stack trace for current crash
 		if collectingStackTrace && currentCrash != nil {
-			// Stack trace lines typically start with "at " or contain "Caused by:"
-			if strings.HasPrefix(line, "at ") || strings.Contains(line, "Caused by:") {
+			if isStackTraceLine(line) {
 				currentCrash.StackTrace += line + "\n"
-			} else if line == "" || strings.HasPrefix(line, "-----") || strings.Contains(line, "DEBUG") {
+			} else if line == "" || strings.HasPrefix(line, "-----") {
 				// End of stack trace
 				if currentCrash.StackTrace != "" {
 					if shouldIncludeCrash(currentCrash, packageName) {
@@ -441,6 +486,16 @@ func extractCrashes(logs string) []Crash {
 					}
 					currentCrash = nil
 				}
+				collectingStackTrace = false
+			} else if currentCrash.StackTrace != "" {
+				// We already collected part of the crash and hit an unrelated
+				// log line (e.g. next app log after the stack). Finalize the
+				// current crash instead of waiting for an empty line, which
+				// rarely appears in real logcat output.
+				if shouldIncludeCrash(currentCrash, packageName) {
+					crashes = append(crashes, *currentCrash)
+				}
+				currentCrash = nil
 				collectingStackTrace = false
 			}
 		}
