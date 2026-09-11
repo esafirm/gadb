@@ -141,6 +141,25 @@ $ gadb restart [package_name] [flags]
 Flags:
 - `-c, --clear`: Restart application and clear the application data
 
+### settings
+
+Toggle common device settings with a filterable TUI (type to filter, Enter to pick,
+then choose Toggle / Turn ON / Turn OFF). State is shown live with colors
+(green ON, red OFF, yellow unset/error) plus a details pane with key and description.
+Covers e.g. Don't keep activities, Stay awake, Show taps, animation scales, auto-rotate.
+
+```shell
+$ gadb settings
+$ gadb settings --list
+$ gadb settings [key-or-name] [on|off|toggle]
+```
+
+Examples:
+- `gadb settings` — open the filterable list, pick a setting, then choose the action (repeats until you exit)
+- `gadb settings --list` — print current values with colors, without the TUI
+- `gadb settings always_finish_activities` — toggle Don't keep activities directly
+- `gadb settings show_touches on` — enable Show taps directly
+
 ### start
 
 Start an Android application.
