@@ -137,7 +137,7 @@ var settingsCmd = &cobra.Command{
 	Long: `Toggle common device settings (e.g. Don't keep activities).
 
 Without arguments it opens a filterable interactive list (type to filter,
-Enter to pick, then choose Toggle / Turn ON / Turn OFF).
+Tab toggles instantly, Enter opens Toggle / Turn ON / Turn OFF).
 With arguments it toggles directly without the TUI:
 
   gadb settings
@@ -260,6 +260,7 @@ func matchSettingsIndices(query string) []int {
 // settingsApplyAndVerify writes the new value and reads it back, reporting
 // the verified end state. It compares on/off state (not raw strings) because
 // e.g. animation scales read back as "1.0" after putting "1".
+// Used by the direct CLI path where printed feedback is wanted.
 func settingsApplyAndVerify(s deviceSetting, newValue string, expectOn bool) {
 	fmt.Printf("%s  %s.%s → %s\n",
 		settingsNameStyle(s.Name),
@@ -292,6 +293,41 @@ func settingsApplyAndVerify(s deviceSetting, newValue string, expectOn bool) {
 			settingsDimStyle(verified),
 		)
 	}
+}
+
+// settingsApplySilent writes the new value without any success output: the
+// TUI list itself shows the updated state on the next refresh. Failures and
+// read-back mismatches are still reported so silent toggles never hide errors.
+func settingsApplySilent(s deviceSetting, newValue string, expectOn bool) {
+	res := adb.SettingsPut(s.Namespace, s.Key, newValue)
+	if res.Error != nil {
+		fmt.Println(settingsErrStyle("✘ Failed:"), res.Error.Error())
+		return
+	}
+	verified, err := settingsCurrentValue(s)
+	if err != nil {
+		fmt.Println(settingsWarnStyle("⚠ Applied, but could not read back the value."), err.Error())
+		return
+	}
+	verified = strings.TrimSpace(verified)
+	if settingsIsOn(verified) != expectOn {
+		fmt.Printf("%s %s reads back as %s — device may have ignored the change.\n",
+			settingsWarnStyle("⚠"),
+			settingsNameStyle(s.Name),
+			settingsDimStyle(verified),
+		)
+	}
+}
+
+// settingsToggleSilent flips the current value without any success output.
+func settingsToggleSilent(s deviceSetting) {
+	current, err := settingsCurrentValue(s)
+	if err != nil {
+		fmt.Println(settingsErrStyle("✘ Could not read current value:"), err.Error())
+		return
+	}
+	current = strings.TrimSpace(current)
+	settingsApplySilent(s, settingsToggleValue(s, current), !settingsIsOn(current))
 }
 
 func runSettingsDirect(query string, desired string) {
@@ -354,69 +390,94 @@ func settingsSelectTemplates() *pui.SelectTemplates {
 		Active:   fmt.Sprintf("%s {{ .Label | underline }}", pui.IconSelect),
 		Inactive: "  {{ .Label }}",
 		Selected: fmt.Sprintf(`{{ %q | green }} {{ .Label | faint }}`, pui.IconGood),
-		Details: `{{ "  key:" | faint }} {{ .Setting.Namespace }}.{{ .Setting.Key }}` + "\n" +
-			`{{ "  about:" | faint }} {{ .Setting.Description }}` + "\n" +
-			`{{ "  now:" | faint }} {{ .Current }}`,
+		// No Details pane: the row itself (Name + [ON]/[OFF] badge + key)
+		// is the whole UI, so Tab toggling only changes the toggle text.
+		Details: "",
+		Help:    `{{ "Tab toggles instantly" | faint }} {{ "• ↑/↓ navigate • type to filter" | faint }}`,
+	}
+}
+
+func buildSettingsTUIItems() ([]settingsTUIItem, bool) {
+	items := make([]settingsTUIItem, 0, len(knownSettings)+1)
+	errCount := 0
+	for _, s := range knownSettings {
+		current, err := settingsCurrentValue(s)
+		if err != nil {
+			errCount++
+		}
+		current = strings.TrimSpace(current)
+		items = append(items, settingsTUIItem{
+			Label:    settingsDisplayLine(s, current, err),
+			Setting:  s,
+			Current:  current,
+			HasError: err != nil,
+		})
+	}
+	if errCount == len(knownSettings) {
+		return nil, false
+	}
+	items = append(items, settingsTUIItem{
+		Label:   settingsDimStyle("Exit"),
+		Current: "-",
+		IsExit:  true,
+		Setting: deviceSetting{Name: "Exit", Description: "Leave the settings browser"},
+	})
+	return items, true
+}
+
+func settingsTUISearcher(items []settingsTUIItem) func(input string, index int) bool {
+	return func(input string, index int) bool {
+		if items[index].IsExit {
+			return strings.Contains(strings.ToLower("exit quit leave"), strings.ToLower(input))
+		}
+		s := items[index].Setting
+		combined := strings.ToLower(s.Name + " " + s.Key + " " + s.Namespace + " " + s.Description)
+		return strings.Contains(combined, strings.ToLower(input))
 	}
 }
 
 func runSettingsTUI() {
+	cursorPos := 0
 	for {
-		items := make([]settingsTUIItem, 0, len(knownSettings)+1)
-		errCount := 0
-		for _, s := range knownSettings {
-			current, err := settingsCurrentValue(s)
-			if err != nil {
-				errCount++
-			}
-			current = strings.TrimSpace(current)
-			items = append(items, settingsTUIItem{
-				Label:    settingsDisplayLine(s, current, err),
-				Setting:  s,
-				Current:  current,
-				HasError: err != nil,
-			})
-		}
-		if errCount == len(knownSettings) {
+		items, ok := buildSettingsTUIItems()
+		if !ok {
 			fmt.Println(settingsErrStyle("✘ Could not read device settings. Is a device connected? (try `adb devices`)"))
 			return
 		}
-		items = append(items, settingsTUIItem{
-			Label:   settingsDimStyle("Exit"),
-			Current: "-",
-			IsExit:  true,
-			Setting: deviceSetting{Name: "Exit", Description: "Leave the settings browser"},
-		})
-
-		prompt := pui.Select{
-			Label:             "Pick a setting to change — type to filter",
-			Items:             items,
-			Size:              12,
-			StartInSearchMode: true,
-			Templates:         settingsSelectTemplates(),
-			Searcher: func(input string, index int) bool {
-				if items[index].IsExit {
-					return strings.Contains(strings.ToLower("exit quit leave"), strings.ToLower(input))
-				}
-				s := items[index].Setting
-				combined := strings.ToLower(s.Name + " " + s.Key + " " + s.Namespace + " " + s.Description)
-				return strings.Contains(combined, strings.ToLower(input))
-			},
+		if cursorPos < 0 {
+			cursorPos = 0
+		}
+		if cursorPos >= len(items) {
+			cursorPos = len(items) - 1
 		}
 
-		idx, _, err := prompt.Run()
+		idx, viaTab, err := runSettingsPicker(
+			"Pick a setting — Tab toggles, Enter selects, type to filter",
+			items,
+			12,
+			cursorPos,
+			settingsSelectTemplates(),
+			settingsTUISearcher(items),
+		)
 		if err != nil {
 			fmt.Println("\n" + settingsDimStyle("Cancelled"))
 			return
 		}
+		cursorPos = idx
 		if items[idx].IsExit {
 			return
+		}
+
+		if viaTab {
+			// Instant toggle without the action selector; the refreshed
+			// list shows the new state, no success output needed.
+			settingsToggleSilent(items[idx].Setting)
+			continue
 		}
 
 		if runSettingsAction(items[idx]) {
 			return
 		}
-		fmt.Println()
 	}
 }
 
@@ -476,8 +537,8 @@ func runSettingsAction(item settingsTUIItem) (exit bool) {
 		return false
 	}
 
-	fmt.Println()
-	settingsApplyAndVerify(s, newValue, expectOn)
+	// Silent: the refreshed list shows the new state, no success output.
+	settingsApplySilent(s, newValue, expectOn)
 	return false
 }
 

@@ -76,14 +76,22 @@ func TestSettingsTemplates(t *testing.T) {
 			}
 		}
 
-		details := executeTemplate(t, tpls.Details, item)
-		lines := strings.Split(details, "\n")
-		if len(lines) != 3 {
-			t.Errorf("Details template for %q rendered %d lines, want 3: %q", name, len(lines), details)
+		details := ""
+		if tpls.Details != "" {
+			details = executeTemplate(t, tpls.Details, item)
+			lines := strings.Split(details, "\n")
+			if len(lines) != 3 {
+				t.Errorf("Details template for %q rendered %d lines, want 3: %q", name, len(lines), details)
+			}
+			if !item.IsExit && !strings.Contains(details, item.Setting.Key) {
+				t.Errorf("Details template for %q does not contain the key: %q", name, details)
+			}
+		} else if compiled, err := compileSettingsTemplates(tpls); err != nil {
+			t.Errorf("compileSettingsTemplates failed: %v", err)
+		} else if compiled.details != nil {
+			t.Errorf("Details template should be empty so only the toggle text changes, got %q", tpls.Details)
 		}
-		if !item.IsExit && !strings.Contains(details, item.Setting.Key) {
-			t.Errorf("Details template for %q does not contain the key: %q", name, details)
-		}
+		_ = details
 	}
 }
 
@@ -100,5 +108,29 @@ func TestSettingsDisplayLineWidth(t *testing.T) {
 		if strings.Contains(line, "\n") {
 			t.Errorf("display line for %q contains a newline", s.Key)
 		}
+	}
+}
+
+// TestSettingsTabHint ensures the TUI advertises the Tab-to-toggle shortcut
+// in both the picker label path (Help template) and the compiled templates.
+func TestSettingsTabHint(t *testing.T) {
+	tpls := settingsSelectTemplates()
+	if !strings.Contains(strings.ToLower(tpls.Help), "tab") {
+		t.Errorf("Help template should mention Tab, got %q", tpls.Help)
+	}
+	compiled, err := compileSettingsTemplates(tpls)
+	if err != nil {
+		t.Fatalf("compileSettingsTemplates failed: %v", err)
+	}
+	out := stripANSI(string(renderSettingsTpl(compiled.help, struct {
+		NextKey     string
+		PrevKey     string
+		PageDownKey string
+		PageUpKey   string
+		Search      bool
+		SearchKey   string
+	}{})))
+	if !strings.Contains(strings.ToLower(out), "tab") {
+		t.Errorf("rendered help should mention Tab, got %q", out)
 	}
 }
