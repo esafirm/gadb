@@ -4,18 +4,26 @@ import (
 	"bytes"
 	"fmt"
 	"io"
+	"strings"
 	"text/template"
 
 	"github.com/chzyer/readline"
+	adb "github.com/esafirm/gadb/adb"
 	"github.com/juju/ansiterm"
+	pui "github.com/manifoldco/promptui"
 	"github.com/manifoldco/promptui/list"
 	"github.com/manifoldco/promptui/screenbuf"
-	pui "github.com/manifoldco/promptui"
 )
 
 // settingsTabKey is the Tab key. Pressing it on the highlighted row toggles
 // the setting immediately without opening the action selector.
 const settingsTabKey = readline.CharTab
+
+// settingsNoComplete disables readline's built-in Tab completion so Tab
+// reaches the select listener untouched (no tab inserted into the search).
+type settingsNoComplete struct{}
+
+func (settingsNoComplete) Do([]rune, int) ([][]rune, int) { return nil, 0 }
 
 const (
 	settingsHideCursor = "\033[?25l"
@@ -126,25 +134,51 @@ func renderSettingsDetails(tpl *template.Template, item interface{}) [][]byte {
 	return bytes.Split(buf.Bytes(), []byte("\n"))
 }
 
-// runSettingsPicker shows the filterable settings list. Enter picks the
-// highlighted row (original index into items). Tab toggles it directly:
-// Tab is translated to Enter via FuncFilterInputRune so readline returns,
-// and tabPressed distinguishes the two. On Tab no "selected" line is left
-// behind so the caller can re-open the picker for the next toggle.
-func runSettingsPicker(label interface{}, items []settingsTUIItem, size int, cursorPos int, templates *pui.SelectTemplates, searcher list.Searcher) (originalIndex int, tabPressed bool, err error) {
+// settingsToggleInline flips a setting without printing anything: success is
+// shown by the refreshed row badge, failures surface as an [ERR] badge on
+// the same row. Must not print: it runs inside the picker's redraw listener
+// where any extra output corrupts the screen buffer.
+func settingsToggleInline(s deviceSetting) (newCurrent string, toggleErr error) {
+	current, err := settingsCurrentValue(s)
+	if err != nil {
+		return "", err
+	}
+	current = strings.TrimSpace(current)
+	newValue := settingsToggleValue(s, current)
+	expectOn := !settingsIsOn(current)
+	if res := adb.SettingsPut(s.Namespace, s.Key, newValue); res.Error != nil {
+		return current, res.Error
+	}
+	verified, err := settingsCurrentValue(s)
+	if err != nil {
+		return newValue, err
+	}
+	verified = strings.TrimSpace(verified)
+	if settingsIsOn(verified) != expectOn {
+		return verified, fmt.Errorf("device ignored the change (reads back as %s)", verified)
+	}
+	return verified, nil
+}
+
+// runSettingsPicker shows the filterable settings list and returns the
+// original index into items for the Enter-picked row. Tab toggles the
+// highlighted row in place: the row badge refreshes, cursor/scroll/filter
+// stay put, and the picker stays open, so there is no extra breakline and
+// no jump back to the first row.
+func runSettingsPicker(label interface{}, items []settingsTUIItem, size int, cursorPos int, templates *pui.SelectTemplates, searcher list.Searcher) (originalIndex int, err error) {
 	if size == 0 {
 		size = 5
 	}
 	l, err := list.New(items, size)
 	if err != nil {
-		return 0, false, err
+		return 0, err
 	}
 	l.Searcher = searcher
 	l.SetCursor(cursorPos)
 
 	compiled, err := compileSettingsTemplates(templates)
 	if err != nil {
-		return 0, false, err
+		return 0, err
 	}
 
 	keys := &pui.SelectKeys{
@@ -156,23 +190,19 @@ func runSettingsPicker(label interface{}, items []settingsTUIItem, size int, cur
 	}
 
 	c := &readline.Config{}
-	c.FuncFilterInputRune = func(r rune) (rune, bool) {
-		if r == settingsTabKey {
-			tabPressed = true
-			return pui.KeyEnter, true
-		}
-		return r, true
-	}
 	if err := c.Init(); err != nil {
-		return 0, false, err
+		return 0, err
 	}
+	// Disable Tab completion (default TabCompleter would insert a literal
+	// tab into the search input); Tab must reach the listener untouched.
+	c.AutoComplete = settingsNoComplete{}
 	c.Stdin = readline.NewCancelableStdin(c.Stdin)
 	c.HistoryLimit = -1
 	c.UniqueEditLine = true
 
 	rl, err := readline.NewEx(c)
 	if err != nil {
-		return 0, false, err
+		return 0, err
 	}
 
 	rl.Write([]byte(settingsHideCursor))
@@ -202,7 +232,38 @@ func runSettingsPicker(label interface{}, items []settingsTUIItem, size int, cur
 	c.SetListener(func(line []rune, pos int, key rune) ([]rune, int, bool) {
 		switch {
 		case key == pui.KeyEnter:
-			// Returnchevron handled by readline; just fall through to redraw.
+			// Return handled by readline; just fall through to redraw.
+		case key == settingsTabKey:
+			if _, idx := l.Items(); idx != list.NotFound {
+				if origIdx := l.Index(); origIdx >= 0 && origIdx < len(items) && !items[origIdx].IsExit {
+					s := items[origIdx].Setting
+					if newCurrent, terr := settingsToggleInline(s); terr != nil {
+						items[origIdx].Label = settingsDisplayLine(s, newCurrent, terr)
+						items[origIdx].Current = newCurrent
+						items[origIdx].HasError = true
+					} else {
+						items[origIdx].Label = settingsDisplayLine(s, newCurrent, nil)
+						items[origIdx].Current = newCurrent
+						items[origIdx].HasError = false
+					}
+					// Rebuild the list around the updated items, keeping
+					// the filter text, cursor and scroll position so the
+					// highlight stays on the toggled row.
+					_, visibleIdx := l.Items()
+					scopeCursor := l.Start() + visibleIdx
+					if nl, nerr := list.New(items, size); nerr == nil {
+						nl.Searcher = searcher
+						if q := cur.Get(); q != "" {
+							nl.Search(q)
+							if scopeCursor >= len(items) {
+								scopeCursor = len(items) - 1
+							}
+						}
+						nl.SetCursor(scopeCursor)
+						l = nl
+					}
+				}
+			}
 		case key == keys.Next.Code || (key == 'j' && !searchMode):
 			l.Next()
 		case key == keys.Prev.Code || (key == 'k' && !searchMode):
@@ -233,9 +294,14 @@ func runSettingsPicker(label interface{}, items []settingsTUIItem, size int, cur
 		case key == keys.PageDown.Code || (key == 'l' && !searchMode):
 			l.PageDown()
 		default:
-			if canSearch && searchMode {
+			if canSearch && searchMode && len(line) > 0 {
+				// Guard on len(line): the initial (nil, 0, 0) draw must
+				// not Search("") — list.Search resets cursor/start to 0
+				// and would wipe the restored cursor position.
 				cur.Update(string(line))
-				l.Search(cur.Get())
+				if len(cur.Get()) > 0 {
+					l.Search(cur.Get())
+				}
 			}
 		}
 
@@ -285,7 +351,6 @@ func runSettingsPicker(label interface{}, items []settingsTUIItem, size int, cur
 		return nil, 0, true
 	})
 
-	wasTab := false
 	for {
 		_, err = rl.Readline()
 		if err != nil {
@@ -299,11 +364,8 @@ func runSettingsPicker(label interface{}, items []settingsTUIItem, size int, cur
 		}
 		_, idx := l.Items()
 		if idx != list.NotFound {
-			wasTab = tabPressed
 			break
 		}
-		// No results: stay in the picker, a Tab here means nothing to toggle.
-		tabPressed = false
 	}
 
 	if err != nil {
@@ -312,29 +374,11 @@ func runSettingsPicker(label interface{}, items []settingsTUIItem, size int, cur
 		sb.Flush()
 		rl.Write([]byte(settingsShowCursor))
 		rl.Close()
-		return 0, false, err
+		return 0, err
 	}
 
 	visible, idx := l.Items()
 	originalIndex = l.Index()
-
-	if wasTab {
-		// Leave no "selected" line behind; the caller re-opens the picker
-		// with the toggled state.
-		_ = visible
-		_ = idx
-		sb.Reset()
-		if err := sb.Clear(); err != nil {
-			sb.Reset()
-			sb.WriteString("")
-			sb.Flush()
-		} else {
-			sb.Flush()
-		}
-		rl.Write([]byte(settingsShowCursor))
-		rl.Close()
-		return originalIndex, true, nil
-	}
 
 	item := visible[idx]
 	sb.Reset()
@@ -343,5 +387,5 @@ func runSettingsPicker(label interface{}, items []settingsTUIItem, size int, cur
 	rl.Write([]byte(settingsShowCursor))
 	rl.Close()
 
-	return originalIndex, false, nil
+	return originalIndex, nil
 }

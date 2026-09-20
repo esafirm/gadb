@@ -7,5 +7,5 @@ func SettingsGet(namespace string, key string) CommandReturn {
 
 // SettingsPut writes a settings value: adb shell settings put <namespace> <key> <value>
 func SettingsPut(namespace string, key string, value string) CommandReturn {
-	return runWithPrint("adb", "shell", "settings", "put", namespace, key, value)
+	return runOnly("adb", "shell", "settings", "put", namespace, key, value)
 }

@@ -319,17 +319,6 @@ func settingsApplySilent(s deviceSetting, newValue string, expectOn bool) {
 	}
 }
 
-// settingsToggleSilent flips the current value without any success output.
-func settingsToggleSilent(s deviceSetting) {
-	current, err := settingsCurrentValue(s)
-	if err != nil {
-		fmt.Println(settingsErrStyle("✘ Could not read current value:"), err.Error())
-		return
-	}
-	current = strings.TrimSpace(current)
-	settingsApplySilent(s, settingsToggleValue(s, current), !settingsIsOn(current))
-}
-
 func runSettingsDirect(query string, desired string) {
 	matched := matchSettingsIndices(query)
 	if len(matched) == 0 {
@@ -451,7 +440,7 @@ func runSettingsTUI() {
 			cursorPos = len(items) - 1
 		}
 
-		idx, viaTab, err := runSettingsPicker(
+		idx, err := runSettingsPicker(
 			"Pick a setting — Tab toggles, Enter selects, type to filter",
 			items,
 			12,
@@ -468,13 +457,8 @@ func runSettingsTUI() {
 			return
 		}
 
-		if viaTab {
-			// Instant toggle without the action selector; the refreshed
-			// list shows the new state, no success output needed.
-			settingsToggleSilent(items[idx].Setting)
-			continue
-		}
-
+		// Tab toggles in place inside the picker; Enter lands here for the
+		// explicit Toggle / Turn ON / Turn OFF menu.
 		if runSettingsAction(items[idx]) {
 			return
 		}
