@@ -8,7 +8,7 @@ build:
 buildbin: 
 	go build -o $(BIN_PATH)
 run: 
-	@go run main.go start
+	@go run main.go settings
 run-dev:
 	@echo "Select command to run:"
 	@select cmd in $$(go run main.go | grep -A 20 "Available Commands:" | awk '/Available Commands:/{f=1;next} /Flags:/{f=0} f && NF{print $$1}'); do \

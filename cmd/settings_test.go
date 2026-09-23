@@ -134,3 +134,51 @@ func TestSettingsTabHint(t *testing.T) {
 		t.Errorf("rendered help should mention Tab, got %q", out)
 	}
 }
+
+// TestAirplaneModeSetting verifies that Airplane mode is registered in knownSettings
+// and matches queries properly.
+func TestAirplaneModeSetting(t *testing.T) {
+	indices := matchSettingsIndices("airplane")
+	if len(indices) != 1 {
+		t.Fatalf("expected 1 match for 'airplane', got %d", len(indices))
+	}
+	s := knownSettings[indices[0]]
+	if s.Key != "airplane_mode_on" {
+		t.Errorf("expected Key to be 'airplane_mode_on', got %q", s.Key)
+	}
+	if s.Name != "Airplane mode" {
+		t.Errorf("expected Name to be 'Airplane mode', got %q", s.Name)
+	}
+	if s.Namespace != "global" {
+		t.Errorf("expected Namespace to be 'global', got %q", s.Namespace)
+	}
+	if s.OnValue != "1" {
+		t.Errorf("expected OnValue to be '1', got %q", s.OnValue)
+	}
+	if s.OffValue != "0" {
+		t.Errorf("expected OffValue to be '0', got %q", s.OffValue)
+	}
+
+	keyIndices := matchSettingsIndices("airplane_mode_on")
+	if len(keyIndices) != 1 || keyIndices[0] != indices[0] {
+		t.Errorf("expected exact key match for 'airplane_mode_on' to match the same setting")
+	}
+
+	if val := settingsToggleValue(s, "0"); val != "1" {
+		t.Errorf("toggling off airplane mode should return '1', got %q", val)
+	}
+	if val := settingsToggleValue(s, "1"); val != "0" {
+		t.Errorf("toggling on airplane mode should return '0', got %q", val)
+	}
+}
+
+// TestSettingsAlias ensures that 'setting' resolves to settingsCmd as an alias.
+func TestSettingsAlias(t *testing.T) {
+	cmd, _, err := rootCmd.Find([]string{"setting"})
+	if err != nil {
+		t.Fatalf("unexpected error finding 'setting': %v", err)
+	}
+	if cmd != settingsCmd {
+		t.Errorf("expected 'setting' to resolve to settingsCmd, got %v", cmd.Name())
+	}
+}

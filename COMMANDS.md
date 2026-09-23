@@ -146,10 +146,13 @@ Flags:
 Toggle common device settings with a filterable TUI (type to filter, Tab toggles
 instantly, Enter opens Toggle / Turn ON / Turn OFF). State is shown live with colors
 (green ON, red OFF, yellow unset/error) in each row.
-Covers e.g. Don't keep activities, Stay awake, Show taps, animation scales, auto-rotate.
+Covers e.g. Don't keep activities, Stay awake, Show taps, animation scales, auto-rotate, airplane mode.
+
+Alias: `setting`
 
 ```shell
 $ gadb settings
+$ gadb setting
 $ gadb settings --list
 $ gadb settings [key-or-name] [on|off|toggle]
 ```
@@ -159,6 +162,7 @@ Examples:
 - `gadb settings --list` — print current values with colors, without the TUI
 - `gadb settings always_finish_activities` — toggle Don't keep activities directly
 - `gadb settings show_touches on` — enable Show taps directly
+- `gadb settings airplane_mode_on toggle` — toggle Airplane mode directly
 
 ### start
 

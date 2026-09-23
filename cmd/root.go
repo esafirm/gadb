@@ -44,7 +44,7 @@ func checkCommandAvailable() bool {
 
 	firstArg := os.Args[1]
 	for _, c := range rootCmd.Commands() {
-		if firstArg == c.Name() {
+		if firstArg == c.Name() || c.HasAlias(firstArg) {
 			return true
 		}
 	}

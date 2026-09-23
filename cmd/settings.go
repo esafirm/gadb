@@ -114,6 +114,14 @@ var knownSettings = []deviceSetting{
 		OnValue:     "1",
 		OffValue:    "0",
 	},
+	{
+		Name:        "Airplane mode",
+		Namespace:   "global",
+		Key:         "airplane_mode_on",
+		Description: "Toggle airplane mode",
+		OnValue:     "1",
+		OffValue:    "0",
+	},
 }
 
 // Color styles (padding is applied before coloring so columns stay aligned).
@@ -132,8 +140,9 @@ var (
 var settingsList bool
 
 var settingsCmd = &cobra.Command{
-	Use:   "settings [key-or-name] [on|off|toggle]",
-	Short: "Toggle common device settings with a filterable TUI",
+	Use:     "settings [key-or-name] [on|off|toggle]",
+	Aliases: []string{"setting"},
+	Short:   "Toggle common device settings with a filterable TUI",
 	Long: `Toggle common device settings (e.g. Don't keep activities).
 
 Without arguments it opens a filterable interactive list (type to filter,
