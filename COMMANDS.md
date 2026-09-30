@@ -114,6 +114,44 @@ Flags:
 - `-d, --debug`: Enable debug mode
 - `-p, --package-selection`: Enable package selection mode
 
+### log
+
+Interactive terminal UI for streaming, searching, and analyzing device logcat in real time (inspired by [byedroid](https://github.com/cesarferreira/byedroid)).
+
+Aliases: `logs`, `logcat`
+
+```shell
+$ gadb log [flags]
+$ gadb logs
+$ gadb logcat
+```
+
+Flags:
+- `-k, --package [name]`: Filter logs by application ID / package name (defaults to project config if available)
+- `-s, --serial [serial]`: Target specific device serial
+- `-l, --level [level]`: Minimum log level (V, D, I, W, E)
+- `-a, --all`: Start showing all logs (no package filter)
+- `-f, --filter [query]`: Initial search / include filter
+- `-x, --exclude [query]`: Initial exclude filter
+
+Keybindings:
+| Key | Action |
+|-----|--------|
+| `Space` | Pause / resume log streaming |
+| `↑` `↓` `j` `k` / mouse wheel | Scroll logcat viewport |
+| `PageUp` `PageDown` | Scroll 20 lines |
+| `End` `G` | Jump to bottom (follow tail) |
+| `f` | Include filter (live search tag, message, level) |
+| `x` | Exclude filter (live exclude noise) |
+| `L` | Log level picker overlay (All, D, I, W, E) |
+| `a` | Toggle all logs vs package-filtered logs |
+| `p` | Target package input & picker modal |
+| `c` | Clear log buffer (and device logcat buffer) |
+| `w` | Export captured logs to `gadb-log-<timestamp>.log` |
+| `y` | Crash & ANR detail popup (`c` copy stack · `a` copy agent prompt · `w` export · `s` search web) |
+| `?` or `h` | Toggle help modal |
+| `q` / `Ctrl+C` | Quit |
+
 ### manifest
 
 Print the `AndroidManifest.xml` from an APK file.
