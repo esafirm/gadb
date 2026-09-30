@@ -2,12 +2,14 @@ package logtui
 
 import (
 	"context"
+	"os"
 	"strings"
 	"time"
 
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/charmbracelet/x/term"
 	"github.com/esafirm/gadb/adb"
 )
 
@@ -24,6 +26,19 @@ const (
 )
 
 const maxLogBuffer = 20000
+
+func getInitialTerminalSize() (int, int) {
+	if w, h, err := term.GetSize(os.Stdout.Fd()); err == nil && w > 0 && h > 0 {
+		return w, h
+	}
+	if w, h, err := term.GetSize(os.Stderr.Fd()); err == nil && w > 0 && h > 0 {
+		return w, h
+	}
+	if w, h, err := term.GetSize(os.Stdin.Fd()); err == nil && w > 0 && h > 0 {
+		return w, h
+	}
+	return 100, 30
+}
 
 // Model is the main Bubble Tea model for the logcat TUI
 type Model struct {
@@ -89,6 +104,8 @@ type Config struct {
 func NewModel(cfg Config) *Model {
 	ctx, cancel := context.WithCancel(context.Background())
 
+	initW, initH := getInitialTerminalSize()
+
 	fi := textinput.New()
 	fi.Placeholder = "filter query..."
 	fi.CharLimit = 100
@@ -106,6 +123,7 @@ func NewModel(cfg Config) *Model {
 	pi := textinput.New()
 	pi.Placeholder = "package name (e.g. com.example.app)"
 	pi.CharLimit = 100
+	pi.Width = 48
 	if cfg.PackageName != "" {
 		pi.SetValue(cfg.PackageName)
 	}
@@ -132,8 +150,8 @@ func NewModel(cfg Config) *Model {
 		packageInput:    pi,
 		levelFilter:     lvl,
 		mode:            ModeNormal,
-		width:           100,
-		height:          30,
+		width:           initW,
+		height:          initH,
 	}
 
 	return m
@@ -210,6 +228,13 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.WindowSizeMsg:
 		m.width = msg.Width
 		m.height = msg.Height
+		pkgW := m.width - 16
+		if pkgW > 50 {
+			pkgW = 50
+		} else if pkgW < 20 {
+			pkgW = 20
+		}
+		m.packageInput.Width = pkgW
 
 	case logEntryMsg:
 		entry := (*LogEntry)(msg)
@@ -370,6 +395,13 @@ func (m *Model) handleNormalKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case "p":
 		m.mode = ModePackageInput
 		m.packageInput.SetValue(m.packageName)
+		pkgW := m.width - 16
+		if pkgW > 50 {
+			pkgW = 50
+		} else if pkgW < 20 {
+			pkgW = 20
+		}
+		m.packageInput.Width = pkgW
 		m.packageInput.Focus()
 		m.filterPackageSuggestions()
 		return m, textinput.Blink
@@ -553,7 +585,7 @@ func (m *Model) handlePackageInputKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case tea.KeyEnter:
-		selected := strings.TrimSpace(m.packageInput.Value())
+		selected := strings.TrimSpace(strings.ReplaceAll(m.packageInput.Value(), "\r", ""))
 		// If user navigated suggestions with arrows and didn't change text, prefer highlighted
 		if m.packageCursor >= 0 && m.packageCursor < len(m.filteredPackages) && selected != "" && strings.Contains(m.filteredPackages[m.packageCursor], selected) {
 			selected = m.filteredPackages[m.packageCursor]
@@ -589,9 +621,13 @@ func (m *Model) handlePackageInputKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 }
 
 func (m *Model) filterPackageSuggestions() {
-	query := strings.ToLower(strings.TrimSpace(m.packageInput.Value()))
+	query := strings.ToLower(strings.TrimSpace(strings.ReplaceAll(m.packageInput.Value(), "\r", "")))
 	var filtered []string
-	for _, p := range m.installedPackages {
+	for _, raw := range m.installedPackages {
+		p := strings.TrimSpace(strings.ReplaceAll(raw, "\r", ""))
+		if p == "" {
+			continue
+		}
 		if query == "" || strings.Contains(strings.ToLower(p), query) {
 			filtered = append(filtered, p)
 			if len(filtered) >= 15 {

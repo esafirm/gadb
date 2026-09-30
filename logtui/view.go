@@ -168,39 +168,86 @@ func renderKeyCap(key, label string, bgHex string) string {
 	return cap + lbl
 }
 
-// RenderHeader renders the two-line header bar
+type keyCapDef struct {
+	key      string
+	label    string
+	bgHex    string
+	priority int // 1 = core/essential, 2 = important, 3 = secondary, 4 = extra
+}
+
+var allKeyCaps = []keyCapDef{
+	{key: "Space", label: "pause", bgHex: "#89B4FA", priority: 1},
+	{key: "f", label: "filter", bgHex: "#A6E3A1", priority: 1},
+	{key: "x", label: "exclude", bgHex: "#FAB387", priority: 3},
+	{key: "L", label: "level", bgHex: "#CBA6F7", priority: 2},
+	{key: "a", label: "all", bgHex: "#89DCEB", priority: 3},
+	{key: "p", label: "pkg", bgHex: "#B4BEFE", priority: 1},
+	{key: "c", label: "clear", bgHex: "#F5C2E7", priority: 4},
+	{key: "y", label: "crash", bgHex: "#F38BA8", priority: 2},
+	{key: "w", label: "export", bgHex: "#94E2D5", priority: 4},
+	{key: "?", label: "help", bgHex: "#F9E2AF", priority: 1},
+	{key: "q", label: "quit", bgHex: "#BAC2DE", priority: 1},
+}
+
+// RenderHeader renders the two-line header bar adapted to window width
 func RenderHeader(m *Model, width int) string {
-	// Row 1: Device · Model · Package · Crashes
+	if width <= 0 {
+		width = 80
+	}
+
+	// Row 1: Device · OS/API · Package · Crashes
 	var r1 []string
 
 	// Device icon and model
+	devStr := ""
 	if m.deviceModel != "" {
-		devStr := lipgloss.NewStyle().Foreground(lipgloss.Color("#64DCFF")).Render("📱 ") +
-			lipgloss.NewStyle().Foreground(lipgloss.Color("#B4E6FF")).Bold(true).Render(m.deviceModel)
-		r1 = append(r1, devStr)
-	} else if m.deviceSerial != "" {
-		r1 = append(r1, lipgloss.NewStyle().Foreground(lipgloss.Color("#B4E6FF")).Bold(true).Render(m.deviceSerial))
-	} else {
-		r1 = append(r1, lipgloss.NewStyle().Foreground(lipgloss.Color("#FFD43B")).Render("⚠ No device"))
-	}
-
-	if m.androidRelease != "" || m.sdkVersion != "" {
-		info := ""
-		if m.androidRelease != "" && m.sdkVersion != "" {
-			info = fmt.Sprintf("Android %s  API %s", m.androidRelease, m.sdkVersion)
-		} else if m.androidRelease != "" {
-			info = fmt.Sprintf("Android %s", m.androidRelease)
-		} else {
-			info = fmt.Sprintf("API %s", m.sdkVersion)
+		mName := m.deviceModel
+		if width < 80 && len(mName) > 18 {
+			mName = mName[:15] + "…"
 		}
-		r1 = append(r1, headerMutedStyle.Render(info))
+		devStr = lipgloss.NewStyle().Foreground(lipgloss.Color("#64DCFF")).Render("📱 ") +
+			lipgloss.NewStyle().Foreground(lipgloss.Color("#B4E6FF")).Bold(true).Render(mName)
+	} else if m.deviceSerial != "" {
+		sName := m.deviceSerial
+		if width < 80 && len(sName) > 18 {
+			sName = sName[:15] + "…"
+		}
+		devStr = lipgloss.NewStyle().Foreground(lipgloss.Color("#B4E6FF")).Bold(true).Render(sName)
+	} else {
+		devStr = lipgloss.NewStyle().Foreground(lipgloss.Color("#FFD43B")).Render("⚠ No device")
+	}
+	r1 = append(r1, devStr)
+
+	// OS / API (adapt to terminal width)
+	if m.androidRelease != "" || m.sdkVersion != "" {
+		if width >= 105 {
+			info := ""
+			if m.androidRelease != "" && m.sdkVersion != "" {
+				info = fmt.Sprintf("Android %s  API %s", m.androidRelease, m.sdkVersion)
+			} else if m.androidRelease != "" {
+				info = fmt.Sprintf("Android %s", m.androidRelease)
+			} else {
+				info = fmt.Sprintf("API %s", m.sdkVersion)
+			}
+			r1 = append(r1, headerMutedStyle.Render(info))
+		} else if width >= 80 && m.sdkVersion != "" {
+			r1 = append(r1, headerMutedStyle.Render("API "+m.sdkVersion))
+		}
 	}
 
 	// Package
 	if m.allPackages {
 		r1 = append(r1, headerDimStyle.Render("all packages"))
 	} else if m.packageName != "" {
-		pkgStr := lipgloss.NewStyle().Foreground(lipgloss.Color("#64C8E6")).Bold(true).Render(m.packageName)
+		pkgDisplay := m.packageName
+		maxPkgLen := width / 3
+		if maxPkgLen < 15 {
+			maxPkgLen = 15
+		}
+		if len(pkgDisplay) > maxPkgLen {
+			pkgDisplay = pkgDisplay[:maxPkgLen-1] + "…"
+		}
+		pkgStr := lipgloss.NewStyle().Foreground(lipgloss.Color("#64C8E6")).Bold(true).Render(pkgDisplay)
 		r1 = append(r1, pkgStr)
 	}
 
@@ -214,9 +261,22 @@ func RenderHeader(m *Model, width int) string {
 	}
 
 	row1Text := "  " + strings.Join(r1, headerSep)
-	row1 := lipgloss.NewStyle().Width(width).Background(lipgloss.Color("#0E0E16")).Render(row1Text)
+	if lipgloss.Width(row1Text) > width {
+		runes := []rune(row1Text)
+		if len(runes) > width {
+			row1Text = string(runes[:width-1]) + "…"
+		}
+	}
+	pad1 := width - lipgloss.Width(row1Text)
+	if pad1 > 0 {
+		row1Text += strings.Repeat(" ", pad1)
+	}
+	row1 := lipgloss.NewStyle().
+		Background(lipgloss.Color("#0E0E16")).
+		MaxWidth(width).
+		Render(row1Text)
 
-	// Row 2: Live status, scroll indicator, active filters
+	// Row 2: Live status, scroll indicator, active filters, toast
 	var r2 []string
 
 	if m.paused {
@@ -261,13 +321,30 @@ func RenderHeader(m *Model, width int) string {
 	}
 
 	row2Text := "  " + strings.Join(r2, headerSep)
-	row2 := lipgloss.NewStyle().Width(width).Background(lipgloss.Color("#0E0E16")).Render(row2Text)
+	if lipgloss.Width(row2Text) > width {
+		runes := []rune(row2Text)
+		if len(runes) > width {
+			row2Text = string(runes[:width-1]) + "…"
+		}
+	}
+	pad2 := width - lipgloss.Width(row2Text)
+	if pad2 > 0 {
+		row2Text += strings.Repeat(" ", pad2)
+	}
+	row2 := lipgloss.NewStyle().
+		Background(lipgloss.Color("#0E0E16")).
+		MaxWidth(width).
+		Render(row2Text)
 
 	return row1 + "\n" + row2
 }
 
-// RenderFooter renders the bottom bar with status and pastel keycaps
+// RenderFooter renders the bottom bar with status and pastel keycaps adapted to width
 func RenderFooter(m *Model, width int) string {
+	if width <= 0 {
+		width = 80
+	}
+
 	// Line 1: Status summary
 	line1 := ""
 	if m.scroll > 0 {
@@ -282,24 +359,48 @@ func RenderFooter(m *Model, width int) string {
 		line1 = fmt.Sprintf("%d logs captured · %d visible", len(m.logEntries), len(m.filteredIndices))
 	}
 
+	maxStatusW := width - 4
+	if maxStatusW > 0 && lipgloss.Width(line1) > maxStatusW {
+		runes := []rune(line1)
+		if len(runes) > maxStatusW {
+			line1 = string(runes[:maxStatusW-1]) + "…"
+		}
+	}
 	statusLine := "  " + statusDimStyle.Render(line1)
 
-	// Line 2: Keycaps
-	var caps strings.Builder
-	caps.WriteString("  ")
-	caps.WriteString(renderKeyCap("Space", "pause", "#89B4FA"))
-	caps.WriteString(renderKeyCap("f", "filter", "#A6E3A1"))
-	caps.WriteString(renderKeyCap("x", "exclude", "#FAB387"))
-	caps.WriteString(renderKeyCap("L", "level", "#CBA6F7"))
-	caps.WriteString(renderKeyCap("a", "all", "#89DCEB"))
-	caps.WriteString(renderKeyCap("p", "pkg", "#B4BEFE"))
-	caps.WriteString(renderKeyCap("c", "clear", "#F5C2E7"))
-	caps.WriteString(renderKeyCap("y", "crash", "#F38BA8"))
-	caps.WriteString(renderKeyCap("w", "export", "#94E2D5"))
-	caps.WriteString(renderKeyCap("?", "help", "#F9E2AF"))
-	caps.WriteString(renderKeyCap("q", "quit", "#BAC2DE"))
+	// Line 2: Responsive Keycaps
+	availW := width - 4
+	if availW < 20 {
+		availW = 20
+	}
 
-	content := statusLine + "\n" + caps.String()
+	var capsLine string
+	// Find the highest priority tier (from 4 down to 1) that fits within availW
+	for maxPrio := 4; maxPrio >= 1; maxPrio-- {
+		var sb strings.Builder
+		sb.WriteString("  ")
+		for _, kc := range allKeyCaps {
+			if kc.priority <= maxPrio {
+				sb.WriteString(renderKeyCap(kc.key, kc.label, kc.bgHex))
+			}
+		}
+		cand := sb.String()
+		if lipgloss.Width(cand) <= availW {
+			capsLine = cand
+			break
+		}
+	}
+
+	// Fallback if even prio 1 doesn't fit in narrow terminal
+	if capsLine == "" {
+		var sb strings.Builder
+		sb.WriteString("  ")
+		sb.WriteString(renderKeyCap("?", "help", "#F9E2AF"))
+		sb.WriteString(renderKeyCap("q", "quit", "#BAC2DE"))
+		capsLine = sb.String()
+	}
+
+	content := statusLine + "\n" + capsLine
 	return footerBlockStyle.Width(width).Render(content)
 }
 
@@ -415,8 +516,8 @@ func RenderCrashPopup(m *Model, width, height int) string {
 	crash := m.crashes[len(m.crashes)-1]
 
 	popupW := int(float64(width) * 0.85)
-	if popupW < 60 {
-		popupW = 60
+	if popupW < 50 {
+		popupW = 50
 	}
 	if popupW > width-4 {
 		popupW = width - 4
@@ -457,11 +558,16 @@ func RenderCrashPopup(m *Model, width, height int) string {
 		end = len(allLines)
 	}
 
+	maxLineLen := popupW - 8
+	if maxLineLen < 20 {
+		maxLineLen = 20
+	}
+
 	for i := start; i < end; i++ {
 		l := allLines[i]
-		raw := l.Raw
-		if len(raw) > popupW-4 {
-			raw = raw[:popupW-4]
+		raw := strings.TrimRight(l.Raw, "\r\n")
+		if len(raw) > maxLineLen {
+			raw = raw[:maxLineLen-1] + "…"
 		}
 
 		lineStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("#CCCCCC"))
@@ -476,11 +582,17 @@ func RenderCrashPopup(m *Model, width, height int) string {
 	// Footer inside popup
 	var footer strings.Builder
 	footer.WriteString("\n")
-	footer.WriteString(renderKeyCap("c", "copy stack", "#F3BCDB"))
-	footer.WriteString(renderKeyCap("a", "agent prompt", "#A6E3A1"))
-	footer.WriteString(renderKeyCap("w", "export", "#89B4FA"))
-	footer.WriteString(renderKeyCap("s", "search web", "#F9E2AF"))
-	footer.WriteString(renderKeyCap("Esc", "close", "#BAC2DE"))
+	if popupW >= 75 {
+		footer.WriteString(renderKeyCap("c", "copy stack", "#F3BCDB"))
+		footer.WriteString(renderKeyCap("a", "agent prompt", "#A6E3A1"))
+		footer.WriteString(renderKeyCap("w", "export", "#89B4FA"))
+		footer.WriteString(renderKeyCap("s", "search web", "#F9E2AF"))
+		footer.WriteString(renderKeyCap("Esc", "close", "#BAC2DE"))
+	} else {
+		footer.WriteString(renderKeyCap("c", "copy", "#F3BCDB"))
+		footer.WriteString(renderKeyCap("a", "ai", "#A6E3A1"))
+		footer.WriteString(renderKeyCap("Esc", "close", "#BAC2DE"))
+	}
 	content.WriteString(footer.String())
 
 	modalBox := lipgloss.NewStyle().
@@ -496,6 +608,14 @@ func RenderCrashPopup(m *Model, width, height int) string {
 
 // RenderHelpModal renders the cheat sheet overlay
 func RenderHelpModal(width, height int) string {
+	boxW := 58
+	if boxW > width-4 {
+		boxW = width - 4
+	}
+	if boxW < 36 {
+		boxW = 36
+	}
+
 	shortcuts := [][]string{
 		{"Space", "Pause / resume logcat streaming"},
 		{"↑ / k", "Scroll up one line"},
@@ -517,8 +637,12 @@ func RenderHelpModal(width, height int) string {
 	var b strings.Builder
 	b.WriteString(lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("#F9E2AF")).Render(" gadb log — Keyboard Shortcuts\n\n"))
 
+	keyW := 14
+	if boxW < 48 {
+		keyW = 10
+	}
 	for _, s := range shortcuts {
-		k := lipgloss.NewStyle().Foreground(lipgloss.Color("#A6E3A1")).Bold(true).Width(14).Render(s[0])
+		k := lipgloss.NewStyle().Foreground(lipgloss.Color("#A6E3A1")).Bold(true).Width(keyW).Render(s[0])
 		desc := lipgloss.NewStyle().Foreground(lipgloss.Color("#E0E0E0")).Render(s[1])
 		b.WriteString(k + desc + "\n")
 	}
@@ -529,7 +653,7 @@ func RenderHelpModal(width, height int) string {
 		Border(lipgloss.RoundedBorder()).
 		BorderForeground(lipgloss.Color("#F9E2AF")).
 		Padding(1, 2).
-		Width(56).
+		Width(boxW).
 		Render(b.String())
 
 	return lipgloss.Place(width, height, lipgloss.Center, lipgloss.Center, modalBox)
@@ -537,38 +661,72 @@ func RenderHelpModal(width, height int) string {
 
 // RenderPackageModal renders the interactive package input and suggestion dialog
 func RenderPackageModal(m *Model, width, height int) string {
+	boxW := 60
+	if boxW > width-4 {
+		boxW = width - 4
+	}
+	if boxW < 36 {
+		boxW = 36
+	}
+	innerWidth := boxW - 6
+	if innerWidth < 20 {
+		innerWidth = 20
+	}
+
 	var b strings.Builder
-	b.WriteString(lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("#64DCFF")).Render(" Target Package Filter\n\n"))
-	b.WriteString(lipgloss.NewStyle().Foreground(lipgloss.Color("#AAAAAA")).Render("Type package name or select from device:\n"))
+	b.WriteString(lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("#64DCFF")).Render(" Target Package Filter") + "\n\n")
+	b.WriteString(lipgloss.NewStyle().Foreground(lipgloss.Color("#AAAAAA")).Render("Type package name or select from device:") + "\n")
 	b.WriteString(m.packageInput.View() + "\n\n")
 
 	if len(m.filteredPackages) > 0 {
-		b.WriteString(lipgloss.NewStyle().Foreground(lipgloss.Color("#6C7086")).Render("Installed packages:\n"))
+		b.WriteString(lipgloss.NewStyle().Foreground(lipgloss.Color("#6C7086")).Render("Installed packages:") + "\n")
 		maxShow := 8
 		if len(m.filteredPackages) < maxShow {
 			maxShow = len(m.filteredPackages)
 		}
 		for i := 0; i < maxShow; i++ {
-			p := m.filteredPackages[i]
+			p := strings.TrimSpace(strings.ReplaceAll(m.filteredPackages[i], "\r", ""))
 			cursor := "  "
 			if i == m.packageCursor {
 				cursor = "❯ "
-				b.WriteString(lipgloss.NewStyle().Foreground(lipgloss.Color("#000000")).Background(lipgloss.Color("#64DCFF")).Bold(true).Render(cursor+p) + "\n")
+			}
+
+			// Truncate p if too long to prevent wrapping inside box
+			maxItemLen := innerWidth - 4
+			displayPkg := p
+			if len(displayPkg) > maxItemLen && maxItemLen > 5 {
+				displayPkg = displayPkg[:maxItemLen-1] + "…"
+			}
+
+			lineText := cursor + displayPkg
+			if i == m.packageCursor {
+				b.WriteString(lipgloss.NewStyle().
+					Foreground(lipgloss.Color("#000000")).
+					Background(lipgloss.Color("#64DCFF")).
+					Bold(true).
+					Width(innerWidth).
+					Render(lineText) + "\n")
 			} else {
-				b.WriteString(lipgloss.NewStyle().Foreground(lipgloss.Color("#E0E0E0")).Render(cursor+p) + "\n")
+				b.WriteString(lipgloss.NewStyle().
+					Foreground(lipgloss.Color("#E0E0E0")).
+					Render(lineText) + "\n")
 			}
 		}
 	} else {
-		b.WriteString(lipgloss.NewStyle().Foreground(lipgloss.Color("#6C7086")).Render("(Press Enter with empty text to clear package filter)\n"))
+		b.WriteString(lipgloss.NewStyle().Foreground(lipgloss.Color("#6C7086")).Render("(Press Enter with empty text to clear package filter)") + "\n")
 	}
 
-	b.WriteString("\n" + lipgloss.NewStyle().Foreground(lipgloss.Color("#888888")).Render("[Enter] Apply  [Tab] Select  [↑↓] Browse  [Esc] Cancel"))
+	hint := "[Enter] Apply  [Tab] Select  [↑↓] Browse  [Esc] Cancel"
+	if innerWidth < 50 {
+		hint = "[Enter] Apply  [Tab] Pick  [Esc] Cancel"
+	}
+	b.WriteString("\n" + lipgloss.NewStyle().Foreground(lipgloss.Color("#888888")).Render(hint))
 
 	modalBox := lipgloss.NewStyle().
 		Border(lipgloss.RoundedBorder()).
 		BorderForeground(lipgloss.Color("#64DCFF")).
 		Padding(1, 2).
-		Width(60).
+		Width(boxW).
 		Render(b.String())
 
 	return lipgloss.Place(width, height, lipgloss.Center, lipgloss.Center, modalBox)

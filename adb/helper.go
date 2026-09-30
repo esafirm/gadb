@@ -4,22 +4,36 @@ import "strings"
 
 // Split and format raw package list from ADB command return
 func splitPackageList(rawString string, trimmedPrefix string) []string {
-	packages := strings.Split(strings.TrimSpace(rawString), "\n")
+	clean := strings.ReplaceAll(rawString, "\r", "")
+	lines := strings.Split(clean, "\n")
 
-	// remove "package:" prefix
-	for i, p := range packages {
-		packages[i] = strings.TrimPrefix(p, trimmedPrefix)
+	var packages []string
+	for _, p := range lines {
+		p = strings.TrimSpace(p)
+		if p == "" {
+			continue
+		}
+		p = strings.TrimPrefix(p, trimmedPrefix)
+		p = strings.TrimSpace(p)
+		if p != "" {
+			packages = append(packages, p)
+		}
 	}
 
 	return packages
 }
 
 func splitAvdList(rawString string) []string {
-	avds := strings.Split(strings.TrimSpace(rawString), "\n")
+	clean := strings.ReplaceAll(rawString, "\r", "")
+	avds := strings.Split(clean, "\n")
 
 	returnedAvds := []string{}
 
 	for _, avd := range avds {
+		avd = strings.TrimSpace(avd)
+		if avd == "" {
+			continue
+		}
 		if !strings.Contains(avd, "INFO") && !strings.Contains(avd, "|") {
 			returnedAvds = append(returnedAvds, avd)
 		}
