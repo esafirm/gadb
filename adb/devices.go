@@ -166,4 +166,3 @@ func GetInstalledPackages(serial string) ([]string, error) {
 	}
 	return splitPackageList(string(cmdRes.Output), "package:"), nil
 }
-

@@ -25,8 +25,8 @@ import (
 )
 
 var (
-	configAI    bool
-	configShow  bool
+	configAI   bool
+	configShow bool
 )
 
 // configCmd represents the config command

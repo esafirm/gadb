@@ -65,7 +65,7 @@ func validateDirectory() {
 func askData() {
 	// Ask for package name
 	packagePrompt := promptui.Prompt{
-		Label:    "Project package",
+		Label: "Project package",
 		Validate: func(input string) error {
 			if len(input) == 0 {
 				return errors.New("package name cannot be empty")

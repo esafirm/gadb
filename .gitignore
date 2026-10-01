@@ -1,2 +1,5 @@
 gadb
 /dist
+/bin
+*.log
+crash-*.txt

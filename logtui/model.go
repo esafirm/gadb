@@ -42,39 +42,39 @@ func getInitialTerminalSize() (int, int) {
 
 // Model is the main Bubble Tea model for the logcat TUI
 type Model struct {
-	ctx           context.Context
-	cancelCtx     context.CancelFunc
-	deviceSerial  string
-	deviceModel   string
+	ctx            context.Context
+	cancelCtx      context.CancelFunc
+	deviceSerial   string
+	deviceModel    string
 	androidRelease string
-	sdkVersion    string
-	packageName   string
-	allPackages   bool
-	pids          map[string]bool
+	sdkVersion     string
+	packageName    string
+	allPackages    bool
+	pids           map[string]bool
 
 	// Log stream & buffer
-	logEntryChan chan *LogEntry
-	errChan      chan error
-	pidChan      chan []string
-	logEntries   []LogEntry
+	logEntryChan    chan *LogEntry
+	errChan         chan error
+	pidChan         chan []string
+	logEntries      []LogEntry
 	filteredIndices []int
 
 	// Viewport & Scrolling
-	scroll                 int // lines scrolled up from tail (0 = following tail)
-	newLinesWhileScrolled  int
-	paused                 bool
-	width                  int
-	height                 int
+	scroll                int // lines scrolled up from tail (0 = following tail)
+	newLinesWhileScrolled int
+	paused                bool
+	width                 int
+	height                int
 
 	// Modes & Modals
-	mode             Mode
-	filterInput      textinput.Model
-	excludeInput     textinput.Model
-	packageInput     textinput.Model
+	mode              Mode
+	filterInput       textinput.Model
+	excludeInput      textinput.Model
+	packageInput      textinput.Model
 	installedPackages []string
 	filteredPackages  []string
 	packageCursor     int
-	levelFilter      string // "ALL", "D", "I", "W", "E"
+	levelFilter       string // "ALL", "D", "I", "W", "E"
 	levelPickerCursor int
 
 	// Crashes
