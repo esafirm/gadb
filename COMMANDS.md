@@ -114,17 +114,21 @@ Flags:
 - `-d, --debug`: Enable debug mode
 - `-p, --package-selection`: Enable package selection mode
 
-### log
+### log / logs
 
 Interactive terminal UI for streaming, searching, and analyzing device logcat in real time (inspired by [byedroid](https://github.com/cesarferreira/byedroid)).
 
-Aliases: `logs`, `logcat`
+Aliases: `logcat`
 
 ```shell
-$ gadb log [flags]
-$ gadb logs
+$ gadb log [package] [filter] [flags]
+$ gadb logs [package] [filter] [flags]
 $ gadb logcat
 ```
+
+Parameters:
+- `[package]`: Optional application ID / package name to target (e.g. `com.example.app`). If omitted, uses the configured package or defaults to all packages.
+- `[filter]`: Optional initial search / include filter query (e.g. `"MainActivity"` or `Retrofit error`).
 
 Flags:
 - `-k, --package [name]`: Filter logs by application ID / package name (defaults to project config if available)
@@ -133,6 +137,13 @@ Flags:
 - `-a, --all`: Start showing all logs (no package filter)
 - `-f, --filter [query]`: Initial search / include filter
 - `-x, --exclude [query]`: Initial exclude filter
+
+Examples:
+- `gadb log` — start logcat TUI for configured package or all packages
+- `gadb logs` — same as `gadb log`
+- `gadb log com.example.app` — target specific package immediately
+- `gadb logs com.example.app "Network"` — target package with initial filter query
+- `gadb log -a "fatal"` — view all device logs with initial search query
 
 Keybindings:
 | Key | Action |

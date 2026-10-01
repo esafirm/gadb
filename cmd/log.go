@@ -17,6 +17,7 @@ package cmd
 import (
 	"fmt"
 	"os"
+	"strings"
 
 	tea "github.com/charmbracelet/bubbletea"
 	adb "github.com/esafirm/gadb/adb"
@@ -37,7 +38,7 @@ var (
 )
 
 var logCmd = &cobra.Command{
-	Use:     "log",
+	Use:     "log [package] [filter]",
 	Aliases: []string{"logs", "logcat"},
 	Short:   "Interactive TUI for streaming and analyzing device logcat",
 	Long: `Interactive keystroke-driven terminal UI for viewing and searching
@@ -45,22 +46,96 @@ Android device logcat in real time. Features include live filtering, level filte
 crash & ANR detection, crash stack trace popup with AI prompt export, and rustycat-style
 column layout.`,
 	Run: func(cmd *cobra.Command, args []string) {
-		runLogTUI()
+		runLogTUI(args)
+	},
+}
+
+var logsCmd = &cobra.Command{
+	Use:     "logs [package] [filter]",
+	Aliases: []string{"logcat"},
+	Short:   "Interactive TUI for streaming and analyzing device logcat",
+	Long: `Interactive keystroke-driven terminal UI for viewing and searching
+Android device logcat in real time. Features include live filtering, level filtering,
+crash & ANR detection, crash stack trace popup with AI prompt export, and rustycat-style
+column layout.`,
+	Run: func(cmd *cobra.Command, args []string) {
+		runLogTUI(args)
 	},
 }
 
 func init() {
 	rootCmd.AddCommand(logCmd)
+	rootCmd.AddCommand(logsCmd)
 
-	logCmd.Flags().StringVarP(&logPackage, "package", "k", "", "Filter logs by application ID / package name")
-	logCmd.Flags().StringVarP(&logSerial, "serial", "s", "", "Target specific device serial")
-	logCmd.Flags().StringVarP(&logLevel, "level", "l", "", "Minimum log level (V, D, I, W, E)")
-	logCmd.Flags().BoolVarP(&logAllPackages, "all", "a", false, "Start showing all logs (no package filter)")
-	logCmd.Flags().StringVarP(&logFilterQuery, "filter", "f", "", "Initial search / include filter")
-	logCmd.Flags().StringVarP(&logExclude, "exclude", "x", "", "Initial exclude filter")
+	setupLogFlags(logCmd)
+	setupLogFlags(logsCmd)
 }
 
-func runLogTUI() {
+func setupLogFlags(cmd *cobra.Command) {
+	cmd.Flags().StringVarP(&logPackage, "package", "k", "", "Filter logs by application ID / package name")
+	cmd.Flags().StringVarP(&logSerial, "serial", "s", "", "Target specific device serial")
+	cmd.Flags().StringVarP(&logLevel, "level", "l", "", "Minimum log level (V, D, I, W, E)")
+	cmd.Flags().BoolVarP(&logAllPackages, "all", "a", false, "Start showing all logs (no package filter)")
+	cmd.Flags().StringVarP(&logFilterQuery, "filter", "f", "", "Initial search / include filter")
+	cmd.Flags().StringVarP(&logExclude, "exclude", "x", "", "Initial exclude filter")
+}
+
+// parseLogArgs resolves package name, filter query, and allPackages mode from args and flags
+func parseLogArgs(args []string, flagPkg, flagFilter string, flagAll bool) (pkg string, filter string, all bool) {
+	pkg = flagPkg
+	filter = flagFilter
+	all = flagAll
+
+	if flagAll {
+		// User explicitly asked for all packages; any positional args are filter terms
+		if filter == "" && len(args) > 0 {
+			filter = strings.Join(args, " ")
+		}
+		return "", filter, true
+	}
+
+	if pkg != "" {
+		// Package was specified via -k/--package; any positional args are filter terms
+		if filter == "" && len(args) > 0 {
+			filter = strings.Join(args, " ")
+		}
+		return pkg, filter, false
+	}
+
+	// No package flag and not --all: first arg is package name (if provided)
+	if len(args) > 0 {
+		pkg = args[0]
+		if filter == "" && len(args) > 1 {
+			filter = strings.Join(args[1:], " ")
+		}
+		if pkg == "" {
+			all = true
+		} else {
+			all = false
+		}
+		return pkg, filter, all
+	}
+
+	// No args, no -k, no -a: check configuration
+	configPkg := config.GetPackageNameOrDefault(func() string {
+		return ""
+	})
+	if configPkg != "" {
+		pkg = configPkg
+		all = false
+	} else {
+		all = true
+	}
+
+	return pkg, filter, all
+}
+
+// RunLog runs the interactive log TUI with positional arguments
+func RunLog(args ...string) {
+	runLogTUI(args)
+}
+
+func runLogTUI(args []string) {
 	// 1. Resolve connected device
 	serial := logSerial
 	if serial == "" {
@@ -87,21 +162,16 @@ func runLogTUI() {
 		}
 	}
 
-	// 2. Resolve package name from flag or config
-	pkg := logPackage
-	if pkg == "" && !logAllPackages {
-		pkg = config.GetPackageNameOrDefault(func() string {
-			return ""
-		})
-	}
+	// 2. Resolve package name, filter query, and allPackages mode
+	pkg, filter, allPackages := parseLogArgs(args, logPackage, logFilterQuery, logAllPackages)
 
 	// 3. Create Model and launch Bubble Tea program
 	cfg := logtui.Config{
 		DeviceSerial: serial,
 		PackageName:  pkg,
 		Level:        logLevel,
-		AllPackages:  logAllPackages,
-		FilterQuery:  logFilterQuery,
+		AllPackages:  allPackages,
+		FilterQuery:  filter,
 		ExcludeQuery: logExclude,
 	}
 
