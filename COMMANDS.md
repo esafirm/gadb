@@ -137,6 +137,7 @@ Flags:
 - `-a, --all`: Start showing all logs (no package filter)
 - `-f, --filter [query]`: Initial search / include filter
 - `-x, --exclude [query]`: Initial exclude filter
+- `-m, --mouse`: Enable mouse capture (wheel scroll). Off by default so logs stay selectable/copyable
 
 Examples:
 - `gadb log` — start logcat TUI for configured package or all packages
@@ -149,9 +150,10 @@ Keybindings:
 | Key | Action |
 |-----|--------|
 | `Space` | Pause / resume log streaming |
-| `↑` `↓` `j` `k` / mouse wheel | Scroll logcat viewport |
+| `↑` `↓` `j` `k` / mouse wheel (when mouse ON) | Scroll logcat viewport |
 | `PageUp` `PageDown` | Scroll 20 lines |
 | `End` `G` | Jump to bottom (follow tail) |
+| `m` | Toggle mouse capture (`OFF` = drag to select & copy, `ON` = wheel scroll) |
 | `f` | Include filter (live search tag, message, level) |
 | `x` | Exclude filter (live exclude noise) |
 | `L` | Log level picker overlay (All, D, I, W, E) |
@@ -162,6 +164,8 @@ Keybindings:
 | `y` | Crash & ANR detail popup (`c` copy stack · `a` copy agent prompt · `w` export · `s` search web) |
 | `?` or `h` | Toggle help modal |
 | `q` / `Ctrl+C` | Quit |
+
+Copying logs: mouse capture is OFF by default, so drag-select text with the mouse and copy with `Cmd/C` or `Ctrl+Shift+C`. Press `m` (or pass `--mouse`) only when you want wheel-scroll at the cost of native selection. `w` exports all visible logs to a file as a selection-free alternative.
 
 ### manifest
 

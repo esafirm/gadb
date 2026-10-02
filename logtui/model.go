@@ -63,6 +63,7 @@ type Model struct {
 	scroll                int // lines scrolled up from tail (0 = following tail)
 	newLinesWhileScrolled int
 	paused                bool
+	mouseEnabled          bool
 	width                 int
 	height                int
 
@@ -98,6 +99,9 @@ type Config struct {
 	AllPackages  bool
 	FilterQuery  string
 	ExcludeQuery string
+	// MouseEnabled opts into mouse capture (wheel scroll). False by
+	// default so terminal text stays selectable/copyable.
+	MouseEnabled bool
 }
 
 // NewModel creates an initialized logcat TUI model
@@ -150,6 +154,7 @@ func NewModel(cfg Config) *Model {
 		packageInput:    pi,
 		levelFilter:     lvl,
 		mode:            ModeNormal,
+		mouseEnabled:    cfg.MouseEnabled,
 		width:           initW,
 		height:          initH,
 	}
@@ -433,6 +438,15 @@ func (m *Model) handleNormalKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		} else {
 			m.showToast("No crashes detected", false)
 		}
+
+	case "m":
+		m.mouseEnabled = !m.mouseEnabled
+		if m.mouseEnabled {
+			m.showToast("Mouse capture ON — wheel scroll enabled, native selection disabled", false)
+			return m, tea.EnableMouseCellMotion
+		}
+		m.showToast("Mouse capture OFF — drag to select & copy logs", false)
+		return m, tea.DisableMouse
 
 	case "?", "h":
 		m.mode = ModeHelp

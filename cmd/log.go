@@ -35,6 +35,7 @@ var (
 	logAllPackages bool
 	logFilterQuery string
 	logExclude     string
+	logMouse       bool
 )
 
 var logCmd = &cobra.Command{
@@ -78,6 +79,7 @@ func setupLogFlags(cmd *cobra.Command) {
 	cmd.Flags().BoolVarP(&logAllPackages, "all", "a", false, "Start showing all logs (no package filter)")
 	cmd.Flags().StringVarP(&logFilterQuery, "filter", "f", "", "Initial search / include filter")
 	cmd.Flags().StringVarP(&logExclude, "exclude", "x", "", "Initial exclude filter")
+	cmd.Flags().BoolVarP(&logMouse, "mouse", "m", false, "Enable mouse capture (wheel scroll). Disabled by default so terminal text stays selectable/copyable")
 }
 
 // parseLogArgs resolves package name, filter query, and allPackages mode from args and flags
@@ -173,10 +175,19 @@ func runLogTUI(args []string) {
 		AllPackages:  allPackages,
 		FilterQuery:  filter,
 		ExcludeQuery: logExclude,
+		MouseEnabled: logMouse,
 	}
 
 	model := logtui.NewModel(cfg)
-	program := tea.NewProgram(model, tea.WithAltScreen(), tea.WithMouseCellMotion())
+	opts := []tea.ProgramOption{tea.WithAltScreen()}
+	// Mouse capture is opt-in: when enabled the terminal reports mouse
+	// events to the app (wheel scroll works) but native text
+	// selection/copy is hijacked. Disabled by default so logs stay
+	// selectable/copyable with mouse drag + Cmd/Ctrl+C.
+	if logMouse {
+		opts = append(opts, tea.WithMouseCellMotion())
+	}
+	program := tea.NewProgram(model, opts...)
 
 	if _, err := program.Run(); err != nil {
 		fmt.Fprintf(os.Stderr, "Error running log TUI: %v\n", err)

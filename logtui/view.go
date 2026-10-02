@@ -183,6 +183,7 @@ var allKeyCaps = []keyCapDef{
 	{key: "a", label: "all", bgHex: "#89DCEB", priority: 3},
 	{key: "p", label: "pkg", bgHex: "#B4BEFE", priority: 1},
 	{key: "c", label: "clear", bgHex: "#F5C2E7", priority: 4},
+	{key: "m", label: "mouse", bgHex: "#E5C07B", priority: 4},
 	{key: "y", label: "crash", bgHex: "#F38BA8", priority: 2},
 	{key: "w", label: "export", bgHex: "#94E2D5", priority: 4},
 	{key: "?", label: "help", bgHex: "#F9E2AF", priority: 1},
@@ -608,7 +609,7 @@ func RenderCrashPopup(m *Model, width, height int) string {
 
 // RenderHelpModal renders the cheat sheet overlay
 func RenderHelpModal(width, height int) string {
-	boxW := 58
+	boxW := 70
 	if boxW > width-4 {
 		boxW = width - 4
 	}
@@ -622,6 +623,8 @@ func RenderHelpModal(width, height int) string {
 		{"↓ / j", "Scroll down one line"},
 		{"PgUp / PgDn", "Scroll 20 lines"},
 		{"End / G", "Jump to bottom (resume auto-tail)"},
+		{"mouse wheel", "Scroll (only when mouse capture is ON, see m)"},
+		{"m", "Toggle mouse capture (OFF = drag to select & copy)"},
 		{"f", "Include filter (type to search tag & message)"},
 		{"x", "Exclude filter (type to hide noise)"},
 		{"L", "Log level picker (All, D, I, W, E)"},
@@ -647,6 +650,7 @@ func RenderHelpModal(width, height int) string {
 		b.WriteString(k + desc + "\n")
 	}
 
+	b.WriteString("\n" + lipgloss.NewStyle().Foreground(lipgloss.Color("#888888")).Render("Copy: drag to select + Cmd/Ctrl+C (mouse OFF) · w exports · y,c copies crash"))
 	b.WriteString("\n" + lipgloss.NewStyle().Foreground(lipgloss.Color("#888888")).Render("Press Esc or ? to close this dialog"))
 
 	modalBox := lipgloss.NewStyle().
