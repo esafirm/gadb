@@ -182,3 +182,78 @@ func TestSettingsAlias(t *testing.T) {
 		t.Errorf("expected 'setting' to resolve to settingsCmd, got %v", cmd.Name())
 	}
 }
+
+// TestAlwaysOnWhenConnectedToPowerSetting verifies that the setting is registered
+// and matches queries for 'always on when connected to power', 'always on', 'power', etc.
+func TestAlwaysOnWhenConnectedToPowerSetting(t *testing.T) {
+	queries := []string{
+		"always on when connected to power",
+		"always on",
+		"power",
+		"stay awake",
+		"stay_on_while_plugged_in",
+	}
+
+	for _, q := range queries {
+		indices := matchSettingsIndices(q)
+		if len(indices) != 1 {
+			t.Fatalf("expected 1 match for %q, got %d", q, len(indices))
+		}
+		s := knownSettings[indices[0]]
+		if s.Key != "stay_on_while_plugged_in" {
+			t.Errorf("query %q: expected Key 'stay_on_while_plugged_in', got %q", q, s.Key)
+		}
+		if s.Namespace != "global" {
+			t.Errorf("query %q: expected Namespace 'global', got %q", q, s.Namespace)
+		}
+		if s.OnValue != "7" {
+			t.Errorf("query %q: expected OnValue '7', got %q", q, s.OnValue)
+		}
+		if s.OffValue != "0" {
+			t.Errorf("query %q: expected OffValue '0', got %q", q, s.OffValue)
+		}
+	}
+
+	s := knownSettings[matchSettingsIndices("stay_on_while_plugged_in")[0]]
+	if val := settingsToggleValue(s, "0"); val != "7" {
+		t.Errorf("toggling off should return '7', got %q", val)
+	}
+	if val := settingsToggleValue(s, "7"); val != "0" {
+		t.Errorf("toggling on (7) should return '0', got %q", val)
+	}
+	if val := settingsToggleValue(s, "3"); val != "0" {
+		t.Errorf("toggling on (3) should return '0', got %q", val)
+	}
+}
+
+// TestParseSettingsArgs verifies multi-word and action argument parsing.
+func TestParseSettingsArgs(t *testing.T) {
+	tests := []struct {
+		args    []string
+		wantQ   string
+		wantDes string
+	}{
+		{[]string{}, "", ""},
+		{[]string{"stay_on_while_plugged_in"}, "stay_on_while_plugged_in", "toggle"},
+		{[]string{"stay_on_while_plugged_in", "on"}, "stay_on_while_plugged_in", "on"},
+		{[]string{"stay", "awake"}, "stay awake", "toggle"},
+		{[]string{"stay", "awake", "on"}, "stay awake", "on"},
+		{[]string{"stay", "awake", "off"}, "stay awake", "off"},
+		{[]string{"always", "on", "when", "connected", "to", "power"}, "always on when connected to power", "toggle"},
+		{[]string{"always", "on", "when", "connected", "to", "power", "on"}, "always on when connected to power", "on"},
+		{[]string{"always", "on", "when", "connected", "to", "power", "off"}, "always on when connected to power", "off"},
+		{[]string{"always", "on"}, "always on", "toggle"},
+		{[]string{"always", "on", "on"}, "always on", "on"},
+		{[]string{"always_finish_activities", "on"}, "always_finish_activities", "on"},
+		{[]string{"airplane", "mode", "on"}, "airplane mode", "on"},
+	}
+
+	for _, tt := range tests {
+		q, des := parseSettingsArgs(tt.args)
+		if q != tt.wantQ || des != tt.wantDes {
+			t.Errorf("parseSettingsArgs(%v) = (%q, %q), want (%q, %q)",
+				tt.args, q, des, tt.wantQ, tt.wantDes)
+		}
+	}
+}
+

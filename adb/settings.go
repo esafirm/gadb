@@ -33,3 +33,38 @@ func AirplaneModeToggle() CommandReturn {
 	}
 	return AirplaneMode(true)
 }
+
+// StayAwake sets the stay awake while charging state (7 = all power sources, 0 = disabled):
+// adb shell settings put global stay_on_while_plugged_in <0|7>
+func StayAwake(enable bool) CommandReturn {
+	val := "0"
+	if enable {
+		val = "7"
+	}
+	return SettingsPut("global", "stay_on_while_plugged_in", val)
+}
+
+// StayAwakeToggle toggles the device stay awake while charging state
+func StayAwakeToggle() CommandReturn {
+	res := SettingsGet("global", "stay_on_while_plugged_in")
+	if res.Error != nil {
+		return res
+	}
+	val := strings.TrimSpace(string(res.Output))
+	if val != "0" && val != "" && val != "null" {
+		return StayAwake(false)
+	}
+	return StayAwake(true)
+}
+
+// AlwaysOnWhenConnectedToPower sets the screen always on when connected to power state:
+// alias for StayAwake
+func AlwaysOnWhenConnectedToPower(enable bool) CommandReturn {
+	return StayAwake(enable)
+}
+
+// AlwaysOnWhenConnectedToPowerToggle toggles the screen always on when connected to power state:
+// alias for StayAwakeToggle
+func AlwaysOnWhenConnectedToPowerToggle() CommandReturn {
+	return StayAwakeToggle()
+}

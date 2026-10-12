@@ -199,7 +199,7 @@ Flags:
 Toggle common device settings with a filterable TUI (type to filter, Tab toggles
 instantly, Enter opens Toggle / Turn ON / Turn OFF). State is shown live with colors
 (green ON, red OFF, yellow unset/error) in each row.
-Covers e.g. Don't keep activities, Stay awake, Show taps, animation scales, auto-rotate, airplane mode.
+Covers e.g. Don't keep activities, Stay awake (always on when connected to power), Show taps, animation scales, auto-rotate, airplane mode.
 
 Alias: `setting`
 
@@ -216,6 +216,8 @@ Examples:
 - `gadb settings always_finish_activities` — toggle Don't keep activities directly
 - `gadb settings show_touches on` — enable Show taps directly
 - `gadb settings airplane_mode_on toggle` — toggle Airplane mode directly
+- `gadb settings always on when connected to power on` — keep screen always on while plugged in
+- `gadb settings "stay awake" toggle` — toggle stay awake while charging
 
 ### start
 

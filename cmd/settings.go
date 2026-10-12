@@ -26,6 +26,7 @@ import (
 
 type deviceSetting struct {
 	Name        string
+	Aliases     []string
 	Namespace   string
 	Key         string
 	Description string
@@ -36,6 +37,7 @@ type deviceSetting struct {
 var knownSettings = []deviceSetting{
 	{
 		Name:        "Don't keep activities",
+		Aliases:     []string{"always finish activities", "dont keep activities"},
 		Namespace:   "global",
 		Key:         "always_finish_activities",
 		Description: "Destroy activities as soon as they leave the screen",
@@ -43,15 +45,30 @@ var knownSettings = []deviceSetting{
 		OffValue:    "0",
 	},
 	{
-		Name:        "Stay awake while charging",
+		Name:      "Stay awake (always on)",
+		Aliases: []string{
+			"always on when connected to power",
+			"always on while charging",
+			"always on",
+			"always_on",
+			"always-on",
+			"connected to power",
+			"stay awake while charging",
+			"stay awake",
+			"stay_awake",
+			"stay-awake",
+			"stay_on_while_plugged_in",
+			"power",
+		},
 		Namespace:   "global",
 		Key:         "stay_on_while_plugged_in",
-		Description: "Keep screen on while plugged in (7 = all sources)",
+		Description: "Keep screen always on when connected to power (7 = all sources)",
 		OnValue:     "7",
 		OffValue:    "0",
 	},
 	{
 		Name:        "Show taps",
+		Aliases:     []string{"show touches", "show touch", "show tap"},
 		Namespace:   "system",
 		Key:         "show_touches",
 		Description: "Show visual feedback for taps",
@@ -92,6 +109,7 @@ var knownSettings = []deviceSetting{
 	},
 	{
 		Name:        "Auto-rotate screen",
+		Aliases:     []string{"auto rotate", "auto-rotate"},
 		Namespace:   "system",
 		Key:         "accelerometer_rotation",
 		Description: "Enable auto-rotation",
@@ -100,6 +118,7 @@ var knownSettings = []deviceSetting{
 	},
 	{
 		Name:        "Heads-up notifications",
+		Aliases:     []string{"heads up", "heads-up"},
 		Namespace:   "global",
 		Key:         "heads_up_notifications_enabled",
 		Description: "Show pop-up heads-up notifications",
@@ -108,6 +127,7 @@ var knownSettings = []deviceSetting{
 	},
 	{
 		Name:        "ADB enabled",
+		Aliases:     []string{"usb debugging"},
 		Namespace:   "global",
 		Key:         "adb_enabled",
 		Description: "USB debugging state",
@@ -116,6 +136,7 @@ var knownSettings = []deviceSetting{
 	},
 	{
 		Name:        "Airplane mode",
+		Aliases:     []string{"airplane", "flight mode"},
 		Namespace:   "global",
 		Key:         "airplane_mode_on",
 		Description: "Toggle airplane mode",
@@ -153,7 +174,8 @@ With arguments it toggles directly without the TUI:
   gadb settings --list
   gadb settings always_finish_activities
   gadb settings "don't keep" off
-  gadb settings show_touches on`,
+  gadb settings show_touches on
+  gadb settings always on when connected to power on`,
 	Run: func(cmd *cobra.Command, args []string) {
 		if settingsList {
 			printSettingsList()
@@ -163,11 +185,8 @@ With arguments it toggles directly without the TUI:
 			runSettingsTUI()
 			return
 		}
-		desired := "toggle"
-		if len(args) > 1 {
-			desired = args[1]
-		}
-		runSettingsDirect(args[0], desired)
+		query, desired := parseSettingsArgs(args)
+		runSettingsDirect(query, desired)
 	},
 }
 
@@ -245,6 +264,56 @@ func printSettingsList() {
 	fmt.Println(settingsDimStyle("Tip: `gadb settings` for the interactive list, `gadb settings <key> on|off|toggle` for direct control."))
 }
 
+func isDesiredAction(s string) bool {
+	switch strings.ToLower(strings.TrimSpace(s)) {
+	case "on", "off", "toggle", "1", "0", "true", "false", "enable", "disable", "enabled", "disabled":
+		return true
+	default:
+		return false
+	}
+}
+
+func isExactSettingMatch(query string) bool {
+	q := strings.ToLower(strings.TrimSpace(query))
+	if q == "" {
+		return false
+	}
+	for _, s := range knownSettings {
+		if strings.ToLower(s.Key) == q || strings.ToLower(s.Name) == q {
+			return true
+		}
+		for _, a := range s.Aliases {
+			if strings.ToLower(a) == q {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func parseSettingsArgs(args []string) (query string, desired string) {
+	if len(args) == 0 {
+		return "", ""
+	}
+	if len(args) == 1 {
+		return args[0], "toggle"
+	}
+
+	last := strings.ToLower(strings.TrimSpace(args[len(args)-1]))
+	if isDesiredAction(last) {
+		prefix := strings.Join(args[:len(args)-1], " ")
+		full := strings.Join(args, " ")
+
+		if isExactSettingMatch(full) && !isExactSettingMatch(prefix) {
+			return full, "toggle"
+		}
+
+		return prefix, args[len(args)-1]
+	}
+
+	return strings.Join(args, " "), "toggle"
+}
+
 func matchSettingsIndices(query string) []int {
 	q := strings.ToLower(strings.TrimSpace(query))
 	if q == "" {
@@ -256,9 +325,21 @@ func matchSettingsIndices(query string) []int {
 			return []int{i}
 		}
 	}
+	// Prefer exact name or exact alias match
+	for i, s := range knownSettings {
+		if strings.ToLower(s.Name) == q {
+			return []int{i}
+		}
+		for _, a := range s.Aliases {
+			if strings.ToLower(a) == q {
+				return []int{i}
+			}
+		}
+	}
 	matched := []int{}
 	for i, s := range knownSettings {
-		combined := strings.ToLower(s.Name + " " + s.Key + " " + s.Namespace + " " + s.Description)
+		aliasStr := strings.Join(s.Aliases, " ")
+		combined := strings.ToLower(s.Name + " " + s.Key + " " + s.Namespace + " " + s.Description + " " + aliasStr)
 		if strings.Contains(combined, q) {
 			matched = append(matched, i)
 		}
@@ -429,7 +510,8 @@ func settingsTUISearcher(items []settingsTUIItem) func(input string, index int) 
 			return strings.Contains(strings.ToLower("exit quit leave"), strings.ToLower(input))
 		}
 		s := items[index].Setting
-		combined := strings.ToLower(s.Name + " " + s.Key + " " + s.Namespace + " " + s.Description)
+		aliasStr := strings.Join(s.Aliases, " ")
+		combined := strings.ToLower(s.Name + " " + s.Key + " " + s.Namespace + " " + s.Description + " " + aliasStr)
 		return strings.Contains(combined, strings.ToLower(input))
 	}
 }
