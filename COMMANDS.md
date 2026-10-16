@@ -43,6 +43,37 @@ Get device battery status.
 $ gadb battery
 ```
 
+### cleanup
+
+Free disk space on a running emulator. Only devices verified as emulators are cleaned (checked via `ro.kernel.qemu`, `ro.boot.qemu`, `ro.hardware`, and `ro.build.characteristics`) — physical devices are never touched.
+
+```shell
+$ gadb cleanup [flags]
+```
+
+Cleaned by default:
+- Perfetto traces: `/data/misc/perfetto-traces`
+- Crash tombstones: `/data/tombstones`
+- System debris: `package_cache`, ANR traces, dropbox, textclassifier models, resource cache (all regenerated on demand)
+- Temp files: `/data/local/tmp` (keeps `lldb-server`, `.studio`, `avdslim_state.json`, and other tooling)
+- App caches: `pm trim-caches`
+
+Flags:
+- `-s, --serial [serial]`: Target a specific emulator (default: auto-detect, or prompt when several are running)
+- `-n, --dry-run`: Show categories and sizes without deleting anything
+- `-y, --yes`: Skip the confirmation prompt
+- `--sdcard`: Also empty `/sdcard/Download`, `/sdcard/Pictures` and `/sdcard/DCIM`
+- `--apps`: Interactively pick third-party apps to uninstall (your configured package, `devicelab`, `androidx.test.*` and `com.android.cli.*` are always kept)
+- `--keep [prefix]`: Never uninstall packages matching this prefix (repeatable)
+
+Root is used when available (`su 0` first, otherwise `adb root`, restored afterwards). Without root, Perfetto traces, tombstones and system debris are skipped.
+
+Examples:
+- `gadb cleanup` — clean the only connected emulator
+- `gadb cleanup -n` — preview what would be freed
+- `gadb cleanup --sdcard --apps` — also clear shared storage, then pick apps to uninstall
+- `gadb cleanup -s emulator-5554 -y` — non-interactive cleanup of a specific emulator
+
 ### clear
 
 Trigger clear data to the selected package.
