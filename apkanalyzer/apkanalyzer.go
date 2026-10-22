@@ -2,7 +2,6 @@ package adb
 
 import (
 	"fmt"
-	"os"
 	"os/exec"
 	"regexp"
 )
@@ -14,23 +13,27 @@ type CommandReturn struct {
 	Error  error
 }
 
-func checkInPath() {
+func checkInPath() error {
 	_, err := exec.LookPath(ANALYZER)
 	if err != nil {
-		fmt.Println(ANALYZER + " is not in the path")
-		os.Exit(1)
+		return fmt.Errorf("%s is not in the path", ANALYZER)
 	}
+	return nil
 }
 
 func Manifest(apkPath string) CommandReturn {
-	checkInPath()
+	if err := checkInPath(); err != nil {
+		return CommandReturn{nil, err}
+	}
 
 	output, err := exec.Command(ANALYZER, "manifest", "print", apkPath).CombinedOutput()
 	return CommandReturn{output, err}
 }
 
 func PackageName(apkPath string) (string, error) {
-	checkInPath()
+	if err := checkInPath(); err != nil {
+		return "", err
+	}
 
 	output, err := exec.Command(ANALYZER, "manifest", "print", apkPath).CombinedOutput()
 	if err != nil {

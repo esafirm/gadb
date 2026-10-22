@@ -5,6 +5,10 @@ import (
 	"time"
 )
 
+// InstallTimeout is used for install commands. DefaultTimeout is too short for
+// a real install, where the APK upload, verification and dexopt can take minutes.
+const InstallTimeout = 5 * time.Minute
+
 // Uninstall application with following package name
 func Uninstall(packageName string) CommandReturn {
 	return runWithPrint("adb", "uninstall", packageName)
@@ -12,11 +16,11 @@ func Uninstall(packageName string) CommandReturn {
 
 // Install APK in the path
 func Install(apkPath string) CommandReturn {
-	return runWithPrint("adb", "install", apkPath)
+	return runWithPrintTimeout(InstallTimeout, "adb", "install", apkPath)
 }
 
 func ReInstall(apkPath string) CommandReturn {
-	return runWithPrint("adb", "install", "-r", apkPath)
+	return runWithPrintTimeout(InstallTimeout, "adb", "install", "-r", apkPath)
 }
 
 func ReInstallWithTimeout(apkPath string, timeout time.Duration) CommandReturn {
@@ -25,7 +29,7 @@ func ReInstallWithTimeout(apkPath string, timeout time.Duration) CommandReturn {
 
 // InstallTo install APK to the specific device
 func InstallTo(deviceID string, apkPath string) CommandReturn {
-	return runWithPrint("adb", "-s", deviceID, "install", apkPath)
+	return runWithPrintTimeout(InstallTimeout, "adb", "-s", deviceID, "install", apkPath)
 }
 
 func InstallToWithTimeout(deviceID string, apkPath string, timeout time.Duration) CommandReturn {

@@ -48,10 +48,10 @@ var installCmd = &cobra.Command{
 
 func showHelpAndExit(cmd *cobra.Command, errorMsg string) {
 	if errorMsg != "" {
-		fmt.Printf("%s\n", errorMsg)
+		fmt.Fprintln(os.Stderr, errorMsg)
 	}
 	cmd.Help()
-	os.Exit(0)
+	os.Exit(1)
 }
 
 func runCommand(apkPath string) {
@@ -72,12 +72,7 @@ func runCommand(apkPath string) {
 	output := string(comamndReturn.Output)
 
 	if comamndReturn.Error != nil {
-		if isVerbose {
-			color.Red("Error: %v", comamndReturn.Error)
-			color.Yellow("Output: %s", output)
-		} else {
-			color.Yellow(extractErrorMessage(output))
-		}
+		printCommandError(comamndReturn)
 		color.Yellow("")
 
 		if canRecoverVersionDowngrade(apkPath, output) {
@@ -90,11 +85,38 @@ func runCommand(apkPath string) {
 		}
 
 		color.Red("Cannot install %s", apkPath)
+		os.Exit(1)
+	}
+}
+
+// printCommandError shows adb's failure line, or the underlying error when adb
+// gave no failure detail (timeout, killed process, connection problem).
+func printCommandError(commandReturn adb.CommandReturn) {
+	output := string(commandReturn.Output)
+
+	if isVerbose {
+		color.Red("Error: %v", commandReturn.Error)
+		color.Yellow("Output: %s", output)
+		return
+	}
+
+	if message := extractErrorMessage(output); message != "" {
+		color.Yellow("%s", message)
+		return
+	}
+
+	color.Yellow("%v", commandReturn.Error)
+	if trimmed := strings.TrimSpace(output); trimmed != "" {
+		color.Yellow("%s", trimmed)
 	}
 }
 
 func showDevicePicker(apkPath string) {
 	deviceChoice := getDeviceChoice()
+	if len(deviceChoice) <= 1 {
+		color.Red("No devices connected")
+		os.Exit(1)
+	}
 	prompt := pui.Select{
 		Label: "Select Target:",
 		Items: deviceChoice,
@@ -104,21 +126,27 @@ func showDevicePicker(apkPath string) {
 
 	if err != nil {
 		fmt.Printf("Prompt failed %v\n", err)
-		return
+		os.Exit(1)
 	}
 
 	deviceID := extractDeviceID(result)
 
 	if deviceID == "All" {
+		allSucceeded := true
 		for _, rawId := range deviceChoice[1:] {
-			installTo(extractDeviceID(rawId), apkPath)
+			if !installTo(extractDeviceID(rawId), apkPath) {
+				allSucceeded = false
+			}
 		}
-	} else {
-		installTo(deviceID, apkPath)
+		if !allSucceeded {
+			os.Exit(1)
+		}
+	} else if !installTo(deviceID, apkPath) {
+		os.Exit(1)
 	}
 }
 
-func installTo(deviceID string, apkPath string) {
+func installTo(deviceID string, apkPath string) bool {
 	fmt.Println("Installing to " + deviceID)
 	var comamndReturn adb.CommandReturn
 	if isNoTimeout {
@@ -126,16 +154,13 @@ func installTo(deviceID string, apkPath string) {
 	} else {
 		comamndReturn = adb.InstallTo(deviceID, apkPath)
 	}
-	output := string(comamndReturn.Output)
 
 	if comamndReturn.Error != nil {
-		if isVerbose {
-			color.Red("Error: %v", comamndReturn.Error)
-			color.Yellow("Output: %s", output)
-		} else {
-			color.Yellow(extractErrorMessage(output))
-		}
+		printCommandError(comamndReturn)
+		color.Red("Cannot install %s to %s", apkPath, deviceID)
+		return false
 	}
+	return true
 }
 
 func getDeviceChoice() []string {
@@ -166,29 +191,35 @@ func shouldShowDevicePicker(output string) bool {
 }
 
 func canRecoverVersionDowngrade(apkPath string, text string) bool {
-	packageName, err := analyzer.PackageName(apkPath)
-	if err != nil {
-		panic(err)
+	if !strings.Contains(text, "INSTALL_FAILED_VERSION_DOWNGRADE") {
+		return false
 	}
 
-	isVersionDowngradeProblem := strings.Contains(text, "INSTALL_FAILED_VERSION_DOWNGRADE")
+	packageName, err := analyzer.PackageName(apkPath)
+	if err != nil {
+		return false
+	}
 
 	var isConfirmed bool = isYes
-	if isVersionDowngradeProblem && !isConfirmed {
+	if !isConfirmed {
 		message := fmt.Sprintf("%s already exist, do you want to uninstall first?", color.CyanString(packageName))
 		isConfirmed = utils.ShowYesOrNoConfirmation(message)
 	}
 
 	if isConfirmed {
-		uninstall(packageName)
-		return true
+		return uninstall(packageName)
 	}
 	return false
 }
 
-func uninstall(packageName string) {
+func uninstall(packageName string) bool {
 	fmt.Printf("Uninstalling %s…\n", color.CyanString(packageName))
-	adb.Uninstall(packageName)
+	commandReturn := adb.Uninstall(packageName)
+	if commandReturn.Error != nil {
+		printCommandError(commandReturn)
+		return false
+	}
+	return true
 }
 
 func extractDeviceID(deviceInfo string) string {
@@ -202,7 +233,7 @@ func extractErrorMessage(output string) string {
 			return line
 		}
 	}
-	return output
+	return ""
 }
 
 func init() {

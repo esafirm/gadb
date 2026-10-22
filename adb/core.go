@@ -2,6 +2,7 @@ package adb
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os/exec"
 	"time"
@@ -25,6 +26,9 @@ func runWithPrintTimeout(timeout time.Duration, name string, arg ...string) Comm
 	defer cancel()
 
 	output, err := exec.CommandContext(ctx, name, arg...).CombinedOutput()
+	if err != nil && errors.Is(ctx.Err(), context.DeadlineExceeded) {
+		err = fmt.Errorf("command timed out after %s", timeout)
+	}
 	if err == nil {
 		fmt.Println(string(output))
 	}
