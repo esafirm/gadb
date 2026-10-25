@@ -28,6 +28,12 @@ var isWipe bool
 // Option: run AVD in cold boot state
 var isColdBoot bool
 
+// Option: run the selected AVD without an emulator window
+var isNoWindow bool
+
+// Option: extra arguments passed through to the emulator
+var avdEmulatorArgs []string
+
 var avdsCmd = &cobra.Command{
 	Use:   "avds [emulator name]",
 	Short: "List all available AVD(s) and run it",
@@ -40,7 +46,7 @@ var avdsCmd = &cobra.Command{
 		if len(args) == 0 {
 			showAvdSelection()
 		} else {
-			adb.AvdRun(args[0], isColdBoot)
+			adb.AvdRun(args[0], isColdBoot, emulatorOptions()...)
 		}
 	},
 }
@@ -52,8 +58,17 @@ func showAvdsWipe() {
 
 func showAvdSelection() {
 	result := showAvdsPrompt("Select AVD to run")
-	fmt.Printf("Launching %s AVD", result)
-	adb.AvdRun(result, isColdBoot)
+	fmt.Printf("Launching %s AVD\n", result)
+	adb.AvdRun(result, isColdBoot, emulatorOptions()...)
+}
+
+// emulatorOptions collects the extra options passed to the emulator
+func emulatorOptions() []string {
+	options := []string{}
+	if isNoWindow {
+		options = append(options, "-no-window")
+	}
+	return append(options, avdEmulatorArgs...)
 }
 
 func showAvdsPrompt(caption string) string {
@@ -79,4 +94,6 @@ func init() {
 	rootCmd.AddCommand(avdsCmd)
 	avdsCmd.Flags().BoolVarP(&isWipe, "wipe", "w", false, "Wipe AVD data")
 	avdsCmd.Flags().BoolVarP(&isColdBoot, "cold", "c", false, "Set running AVD in cold state")
+	avdsCmd.Flags().BoolVarP(&isNoWindow, "no-window", "n", false, "Run AVD without an emulator window")
+	avdsCmd.Flags().StringArrayVarP(&avdEmulatorArgs, "emulator-arg", "e", nil, "Extra emulator argument, repeatable (e.g. -e -no-audio)")
 }

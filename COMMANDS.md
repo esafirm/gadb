@@ -34,6 +34,16 @@ $ gadb avds [emulator_name] [flags]
 Flags:
 - `-w, --wipe`: Wipe AVD data before running
 - `-c, --cold`: Run AVD in cold boot state
+- `-n, --no-window`: Run AVD without an emulator window (headless)
+- `-e, --emulator-arg [arg]`: Extra emulator argument, repeatable
+
+```shell
+# Run headless
+$ gadb avds Pixel_7_Pro_API_34 --no-window
+
+# Pass any other emulator option through
+$ gadb avds Pixel_7_Pro_API_34 -e -no-audio -e -gpu -e swiftshader_indirect
+```
 
 ### battery
 
