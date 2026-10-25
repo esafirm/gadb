@@ -24,12 +24,14 @@ import (
 	"text/tabwriter"
 	"time"
 
+	"github.com/chzyer/readline"
 	adb "github.com/esafirm/gadb/adb"
 	"github.com/esafirm/gadb/avd"
 	"github.com/esafirm/gadb/config"
 	"github.com/esafirm/gadb/slim"
 	"github.com/esafirm/gadb/utils"
 	"github.com/fatih/color"
+	pui "github.com/manifoldco/promptui"
 	"github.com/spf13/cobra"
 )
 
@@ -82,30 +84,28 @@ var (
 
 var slimCmd = &cobra.Command{
 	Use:   "slim",
-	Short: "Audit, create, tune and prune Android emulators",
-	Long: `Audit, create, tune and prune Android Virtual Devices.
+	Short: "Keep Android emulators light, fast and reproducible",
+	Long: `Keep Android emulators light, fast and reproducible.
 
-check is read-only: it inspects the AVD's system image and config.ini, and when
-the emulator is running it reads the real guest RAM, renderer and low-RAM state.
+check     audit the image, config and live guest (read-only)
+create    build a new AVD from a 4 KB Google APIs image
+tune      set guest RAM, host GPU, audio and camera in config.ini
+start     tune, boot, wait and prune in one command
+on        prune packages and settings on a running emulator
+off       restore packages, settings and config.ini
+status    show what is applied and whether the guest drifted
+snapshot  bake a clean gadb_clean snapshot for fast boots
+unbake    delete that snapshot
 
-create builds a new AVD from the newest complete 4 KB Google APIs image for this
-host, then tunes it. It never downloads images.
-
-tune updates config.ini (guest RAM, host GPU, audio and camera emulation) and
-records the original values in gadb-slim.json next to config.ini.
-
-on prunes a running emulator: it disables the curated package groups, applies a
-small set of background limits, and trims cached processes.
-
-off restores packages, settings and config.ini from gadb-slim.json.
-
-status shows what is recorded and whether the guest still matches.
-
-start tunes and boots an AVD with -lowram and the host GPU, waits for boot and
-runs on. It restores the golden snapshot when one is valid and current.
-
-snapshot bakes gadb_clean from a cold boot. --live snapshots the running guest.
-unbake removes it.`,
+Run with no subcommand for an interactive menu. Use the subcommands and flags
+for scripting.`,
+	Args: cobra.NoArgs,
+	RunE: func(cmd *cobra.Command, args []string) error {
+		if !readline.IsTerminal(int(os.Stdin.Fd())) {
+			return cmd.Help()
+		}
+		return runSlimMenu()
+	},
 }
 
 var slimCheckCmd = &cobra.Command{
@@ -772,7 +772,10 @@ func resolveSlimTarget(args []string, requireRunning bool, caption string) (avd.
 		for i, candidate := range running {
 			labels[i] = fmt.Sprintf("%s (%s)", candidate.AVD, candidate.Serial)
 		}
-		index, _ := utils.ShowSelection(caption, labels)
+		index, _, err := promptSlimSelection(caption, labels)
+		if err != nil {
+			return avd.AVD{}, "", false, err
+		}
 		chosen := running[index]
 		target, err := avd.Find(chosen.AVD)
 		return target, chosen.Serial, true, err
@@ -795,7 +798,10 @@ func resolveSlimTarget(args []string, requireRunning bool, caption string) (avd.
 		for i, candidate := range installed {
 			names[i] = candidate.Name
 		}
-		index, _ := utils.ShowSelection(caption, names)
+		index, _, err := promptSlimSelection(caption, names)
+		if err != nil {
+			return avd.AVD{}, "", false, err
+		}
 		return installed[index], "", false, nil
 	}
 }
@@ -840,9 +846,21 @@ func selectSlimAVD(args []string, caption string) (avd.AVD, error) {
 		for i, candidate := range avds {
 			names[i] = candidate.Name
 		}
-		_, selected := utils.ShowSelection(caption, names)
-		return avd.Find(selected)
+		index, _, err := promptSlimSelection(caption, names)
+		if err != nil {
+			return avd.AVD{}, err
+		}
+		return avds[index], nil
 	}
+}
+
+func promptSlimSelection(caption string, items []string) (int, string, error) {
+	prompt := pui.Select{
+		Label: caption,
+		Items: items,
+		Size:  12,
+	}
+	return prompt.Run()
 }
 
 func printCheckTable(avds []avd.AVD) error {

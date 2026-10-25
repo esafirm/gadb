@@ -262,9 +262,11 @@ Examples:
 
 ### slim
 
-Audit, create, tune, prune and snapshot Android Virtual Devices. `check`, `create`
-and `tune` never change the guest. `on` and `snapshot --live` change a running
-guest, `off` reverses them, and `snapshot` bakes a clean state.
+Keep Android emulators light, fast and reproducible. Run `gadb slim` with no
+subcommand for an interactive menu; the subcommands and flags are for scripting.
+
+`check`, `create` and `tune` never change the guest. `on` and `snapshot --live`
+change a running guest, `off` reverses them, and `snapshot` bakes a clean state.
 
 ```shell
 $ gadb slim check [avd]
