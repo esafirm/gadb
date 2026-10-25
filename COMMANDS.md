@@ -260,6 +260,141 @@ Examples:
 - `gadb settings always on when connected to power on` — keep screen always on while plugged in
 - `gadb settings "stay awake" toggle` — toggle stay awake while charging
 
+### slim
+
+Audit, create, tune, prune and snapshot Android Virtual Devices. `check`, `create`
+and `tune` never change the guest. `on` and `snapshot --live` change a running
+guest, `off` reverses them, and `snapshot` bakes a clean state.
+
+```shell
+$ gadb slim check [avd]
+$ gadb slim create <name> [flags]
+$ gadb slim tune [avd] [flags]
+$ gadb slim on [serial|avd] [flags]
+$ gadb slim off [serial|avd]
+$ gadb slim status [serial|avd]
+$ gadb slim start [avd] [flags]
+$ gadb slim snapshot [avd] [flags]
+$ gadb slim unbake [avd] [flags]
+```
+
+`check` is read-only. It inspects the AVD's system image and `config.ini`, and when
+the emulator is running it reads the real guest RAM, renderer and low-RAM state.
+
+`create` makes a new AVD from the newest complete 4 KB `google_apis` image for this
+host, then tunes it. It refuses to overwrite an existing name and never downloads
+images. When nothing suitable is installed it prints the exact `sdkmanager` command.
+`avdmanager` must be available and needs Java 17+.
+
+`tune` writes `config.ini` for a stopped AVD:
+
+- `hw.ramSize` (default 2048 MB, `--ram=1536` for maximum savings)
+- `hw.gpu.mode` (host on macOS/Windows, auto on Linux desktop, swiftshader_indirect on headless Linux)
+- audio and camera emulation off
+- `hardware-qemu.ini` removed so the emulator regenerates it
+
+The original values are recorded in `gadb-slim.json` next to `config.ini`, plus an
+untouched `config.ini.gadb.bak`. `--restore` puts back only the values gadb changed,
+so edits you made after tuning are left alone.
+
+`on` prunes a running, verified emulator. It disables the curated package groups,
+sets `background_process_limit=4` and merges `max_cached_processes=4` into
+`activity_manager_constants`, then trims cached processes. The restore record is
+saved before anything changes, so a crash halfway through can still be undone.
+
+`off` re-enables the packages and restores the settings recorded for that emulator,
+then restores `config.ini`. If the emulator is stopped, guest changes stay in
+`gadb-slim.json` and are restored the next time `off` runs with it online.
+
+`status` shows the recorded package and setting counts, config drift, and whether
+the running guest still matches the manifest.
+
+`start` tunes a stopped AVD, boots it with `-lowram`, the host GPU, no audio and no
+boot animation, waits for boot and runs `on`. It restores `gadb_clean` when the
+snapshot is valid and current, otherwise it cold boots. The emulator keeps running
+after gadb exits. `--cold` ignores the snapshot; `--no-slim` skips guest pruning.
+If the AVD is already tuned, `start` keeps its RAM and GPU unless you pass a
+tuning flag on that run.
+
+`snapshot` (alias `bake`) cold boots a stopped AVD, applies `on`, saves
+`gadb_clean` and shuts the emulator down. If the AVD is running it stops it first,
+prompting unless `--yes`. `--live` snapshots the running guest instead, including
+installed apps and data, and cannot be combined with `--headless`, `--ram`, `--gpu`,
+`--keep-audio` or `--keep-camera`. The snapshot is tied to the current system image
+and `config.ini`, and `status`/`check` report it as stale when either changes. A
+cold snapshot keeps an existing tune unless you pass a tuning flag.
+
+`unbake` deletes `gadb_clean` and clears its record. It stops a running AVD first,
+prompting unless `--yes`.
+
+Create flags:
+- `--api [level]`: API level to use (default: newest installed)
+- `--device [id]`: `avdmanager` device profile (default `pixel`)
+- `--ram [mb]`: Guest RAM in MB (default 2048)
+- `--gpu [mode]`: Emulator GPU mode (default host on macOS/Windows)
+- `--keep-audio`: Leave audio emulation on
+- `--keep-camera`: Leave camera emulation on
+
+Tune flags:
+- `--ram [mb]`: Guest RAM in MB (default 2048)
+- `--gpu [mode]`: Emulator GPU mode (default host on macOS/Windows)
+- `--keep-audio`: Leave audio emulation on
+- `--keep-camera`: Leave camera emulation on
+- `--restore`: Restore the values recorded by the last tune
+
+On flags:
+- `--aggressive`: Also disable Play Store, Chrome, partner setup and setup wizard
+- `--keep [package]`: Never disable this package (repeatable). The configured app package is kept automatically
+- `--skip [group]`: Leave a group alone (repeatable): assistant, peripherals, privacy, wellbeing, media, telephony, accessibility, printing, telemetry, aggressive, animations, bglimit
+- `--no-anim`: Set the animation scales to 0 (default: leave them alone)
+
+Start flags:
+- `--ram [mb]`, `--gpu [mode]`: guest RAM and GPU mode
+- `--headless`: no emulator window
+- `--cold`: ignore the golden snapshot and cold boot
+- `--no-lowram`: do not pass `-lowram`
+- `--no-slim`: boot without running `on`
+- `--keep-audio`, `--keep-camera`: leave those emulations on
+- `--aggressive`, `--keep`, `--skip`, `--no-anim`: same as `on`
+
+Snapshot flags:
+- `--live`: snapshot the running guest instead of a cold bake
+- `--headless`: bake without an emulator window
+- `--yes`: stop a running AVD without asking
+- `--ram [mb]`, `--gpu [mode]`: guest RAM and GPU mode
+- `--keep-audio`, `--keep-camera`: leave those emulations on
+- `--aggressive`, `--keep`, `--skip`, `--no-anim`: same as `on`
+
+Unbake flags:
+- `--yes`: stop a running AVD without asking
+
+Core packages are never disabled: GMS and GSF, WebView, the keyboard, launcher,
+SystemUI, permission controllers, package installers, providers and Bluetooth.
+
+Examples:
+- `gadb slim check` — audit every installed AVD, or one in detail when only one exists
+- `gadb slim check Pixel_7_Pro_API_34` — detailed report for one AVD
+- `gadb slim create Pixel_Slim` — newest complete 4 KB image, then tune
+- `gadb slim create Pixel_Slim --api=35 --device=pixel_6 --ram=1536` — pick the API and profile
+- `gadb slim tune Pixel_7_Pro_API_34 --ram=1536` — maximum memory savings
+- `gadb slim on` — prune the only running emulator
+- `gadb slim on Pixel_7_Pro_API_34` — prune a specific AVD
+- `gadb slim on emulator-5554 --aggressive` — include Play Store and Chrome
+- `gadb slim on --keep=com.google.android.apps.maps --skip=telephony` — keep Maps and the phone apps
+- `gadb slim status` — check what is applied and whether the guest drifted
+- `gadb slim off` — restore the running emulator and `config.ini`
+- `gadb slim off Pixel_7_Pro_API_34` — restore an AVD even when it is stopped
+- `gadb slim start Pixel_Slim` — tune, boot and prune in one command
+- `gadb slim start Pixel_Slim --headless --ram=1536` — headless with maximum savings
+- `gadb slim start Pixel_Slim --cold --skip=telephony` — ignore the snapshot and keep the phone apps
+- `gadb slim snapshot Pixel_Slim` — cold bake a clean `gadb_clean` snapshot
+- `gadb slim snapshot Pixel_Slim --live` — capture the running guest as the snapshot
+- `gadb slim unbake Pixel_Slim` — delete the golden snapshot
+
+A Play Store or 16 KB page-size image keeps its own RAM floor. 16 KB images reserve
+4096 MB regardless of `hw.ramSize`, so `check` will suggest `gadb slim create` for a
+replacement AVD built from a 4 KB `google_apis` image.
+
 ### start
 
 Start an Android application.
