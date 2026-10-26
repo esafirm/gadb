@@ -45,6 +45,39 @@ $ gadb avds Pixel_7_Pro_API_34 --no-window
 $ gadb avds Pixel_7_Pro_API_34 -e -no-audio -e -gpu -e swiftshader_indirect
 ```
 
+### avds kill
+
+Show running emulators with the launch config each one is using, then stop one.
+
+The config is read from the live `qemu-system` process, not from `config.ini`, so it shows what the emulator was actually started with: `no-window`, GPU mode, audio, memory, snapshot and so on. Emulators that adb cannot reach (offline or still booting) are stopped through their host process.
+
+```shell
+$ gadb avds kill [emulator_name|serial] [flags]
+```
+
+Flags:
+- `--all`: Stop every running emulator (asks first)
+- `-y, --yes`: Do not ask before stopping all emulators
+
+```shell
+# Pick from the list of running emulators
+$ gadb avds kill
+
+# Stop a specific one
+$ gadb avds kill Pixel_7_Pro_API_34
+
+# Stop everything without a prompt
+$ gadb avds kill --all --yes
+```
+
+Example output:
+
+```shell
+SERIAL         AVD                   STATE   PID    CONFIG
+emulator-5554  Pixel_7_Pro_API_34    device  48756  no-window, gpu=host, no-audio, 4096 MB
+emulator-5556  Pixel_3a_API_30       offline 51234  window, gpu=swiftshader_indirect
+```
+
 ### battery
 
 Get device battery status.
