@@ -27,13 +27,37 @@ func ReInstallWithTimeout(apkPath string, timeout time.Duration) CommandReturn {
 	return runWithPrintTimeout(timeout, "adb", "install", "-r", apkPath)
 }
 
+// AndroidInstall uses the Android CLI's delta deployment unless full is true.
+func AndroidInstall(deviceID, apkPath string, full bool, timeout time.Duration) CommandReturn {
+	args := []string{"install", "--install-options=-r"}
+	if deviceID != "" {
+		args = append(args, "--device="+deviceID)
+	}
+	if full {
+		args = append(args, "--use-delta-install=false")
+	} else {
+		args = append(args, "--use-delta-install=true")
+	}
+	args = append(args, apkPath)
+	return runWithPrintTimeout(timeout, "android", args...)
+}
+
+// ReInstallFullWithTimeout disables adb fast deploy while retaining replacement semantics.
+func ReInstallFullWithTimeout(apkPath string, timeout time.Duration) CommandReturn {
+	return runWithPrintTimeout(timeout, "adb", "install", "--no-fastdeploy", "-r", apkPath)
+}
+
+func InstallToFullWithTimeout(deviceID, apkPath string, timeout time.Duration) CommandReturn {
+	return runWithPrintTimeout(timeout, "adb", "-s", deviceID, "install", "--no-fastdeploy", "-r", apkPath)
+}
+
 // InstallTo install APK to the specific device
 func InstallTo(deviceID string, apkPath string) CommandReturn {
-	return runWithPrintTimeout(InstallTimeout, "adb", "-s", deviceID, "install", apkPath)
+	return runWithPrintTimeout(InstallTimeout, "adb", "-s", deviceID, "install", "-r", apkPath)
 }
 
 func InstallToWithTimeout(deviceID string, apkPath string, timeout time.Duration) CommandReturn {
-	return runWithPrintTimeout(timeout, "adb", "-s", deviceID, "install", apkPath)
+	return runWithPrintTimeout(timeout, "adb", "-s", deviceID, "install", "-r", apkPath)
 }
 
 // Debug enable waiting debug mode in android

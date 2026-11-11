@@ -15,8 +15,10 @@
 package cmd
 
 import (
+	"errors"
 	"fmt"
 	"os"
+	"os/exec"
 	"strings"
 	"time"
 
@@ -32,6 +34,8 @@ import (
 var isYes bool
 var isVerbose bool
 var isNoTimeout bool
+var isFullInstall bool
+var installDevice string
 
 // installCmd represents the install command
 var installCmd = &cobra.Command{
@@ -63,12 +67,11 @@ func runCommand(apkPath string) {
 		os.Exit(1)
 	}
 
-	var comamndReturn adb.CommandReturn
+	timeout := adb.InstallTimeout
 	if isNoTimeout {
-		comamndReturn = adb.ReInstallWithTimeout(apkPath, -1*time.Second)
-	} else {
-		comamndReturn = adb.ReInstall(apkPath)
+		timeout = -1 * time.Second
 	}
+	comamndReturn := installAPK(installDevice, apkPath, isFullInstall, timeout)
 	output := string(comamndReturn.Output)
 
 	if comamndReturn.Error != nil {
@@ -149,11 +152,11 @@ func showDevicePicker(apkPath string) {
 func installTo(deviceID string, apkPath string) bool {
 	fmt.Println("Installing to " + deviceID)
 	var comamndReturn adb.CommandReturn
+	timeout := adb.InstallTimeout
 	if isNoTimeout {
-		comamndReturn = adb.InstallToWithTimeout(deviceID, apkPath, -1*time.Second)
-	} else {
-		comamndReturn = adb.InstallTo(deviceID, apkPath)
+		timeout = -1 * time.Second
 	}
+	comamndReturn = installAPK(deviceID, apkPath, isFullInstall, timeout)
 
 	if comamndReturn.Error != nil {
 		printCommandError(comamndReturn)
@@ -161,6 +164,27 @@ func installTo(deviceID string, apkPath string) bool {
 		return false
 	}
 	return true
+}
+
+func installAPK(deviceID, apkPath string, full bool, timeout time.Duration) adb.CommandReturn {
+	if _, err := exec.LookPath("android"); err == nil {
+		if deviceID == "" {
+			deviceID = os.Getenv("ANDROID_SERIAL")
+		}
+		return adb.AndroidInstall(deviceID, apkPath, full, timeout)
+	} else if !errors.Is(err, exec.ErrNotFound) {
+		return adb.CommandReturn{Error: err}
+	}
+	if deviceID != "" {
+		if full {
+			return adb.InstallToFullWithTimeout(deviceID, apkPath, timeout)
+		}
+		return adb.InstallToWithTimeout(deviceID, apkPath, timeout)
+	}
+	if full {
+		return adb.ReInstallFullWithTimeout(apkPath, timeout)
+	}
+	return adb.ReInstallWithTimeout(apkPath, timeout)
 }
 
 func getDeviceChoice() []string {
@@ -187,7 +211,7 @@ func getDeviceChoice() []string {
 }
 
 func shouldShowDevicePicker(output string) bool {
-	return strings.Contains(output, "more than one device/emulator")
+	return strings.Contains(output, "more than one device/emulator") || strings.Contains(output, "Multiple devices") || strings.Contains(output, "multiple devices")
 }
 
 func canRecoverVersionDowngrade(apkPath string, text string) bool {
@@ -214,7 +238,16 @@ func canRecoverVersionDowngrade(apkPath string, text string) bool {
 
 func uninstall(packageName string) bool {
 	fmt.Printf("Uninstalling %s…\n", color.CyanString(packageName))
-	commandReturn := adb.Uninstall(packageName)
+	deviceID := installDevice
+	if deviceID == "" {
+		deviceID = os.Getenv("ANDROID_SERIAL")
+	}
+	var commandReturn adb.CommandReturn
+	if deviceID == "" {
+		commandReturn = adb.Uninstall(packageName)
+	} else {
+		commandReturn = adb.UninstallFrom(deviceID, packageName)
+	}
 	if commandReturn.Error != nil {
 		printCommandError(commandReturn)
 		return false
@@ -241,4 +274,6 @@ func init() {
 	installCmd.Flags().BoolVarP(&isYes, "yes", "y", false, "Set auto confirm")
 	installCmd.Flags().BoolVarP(&isVerbose, "verbose", "v", false, "Show verbose error message")
 	installCmd.Flags().BoolVarP(&isNoTimeout, "no-timeout", "", false, "Disable timeout for long running install")
+	installCmd.Flags().BoolVar(&isFullInstall, "full-install", false, "Disable delta install")
+	installCmd.Flags().StringVarP(&installDevice, "device", "s", "", "Install to the device with the given serial")
 }

@@ -4,6 +4,30 @@
 
 ## Commands
 
+### Backend selection
+
+Install [Android CLI](https://developer.android.com/cli) for delta installs and the
+Android-specific commands below. `gadb install` falls back to ADB only when
+Android CLI is missing, not when an Android CLI command fails. Other existing
+commands keep their current backends. Commands that require Android CLI report
+how to install it when it is missing.
+
+`run`, `profiler`, and `artifact` forward their arguments unchanged to Android CLI,
+including backend flags and `--`. They do not use GADB's package configuration,
+so do not pass GADB's `--config` flag to them. Use their `--help` to see installed
+backend options.
+
+### artifact
+
+Inspect APKs, AABs, JARs, and AARs using `android analyze`. This is separate from
+`gadb analyze`, which still analyzes device logs.
+
+```shell
+gadb artifact app-debug.apk
+gadb artifact --format=json app.aab
+gadb artifact --analysis=optimization app.aab
+```
+
 ### analyze
 
 Analyze device logs with AI insights. Detect crashes, anomalies, performance issues, and provide actionable insights.
@@ -162,11 +186,65 @@ $ gadb focus
 
 ### install
 
-Install APK to connected device(s). Automatically handles uninstallation if a version downgrade or existing installation is detected.
+Install an APK to connected device(s), preferring Android CLI's delta installation.
+Only changed bytes are transferred during subsequent deployments. If Android CLI
+is not installed, uses `adb install -r` instead. A failed install is not silently
+retried through another backend.
+
+Version downgrades can be recovered by uninstalling first, after confirmation
+(or with `--yes`). **Uninstalling deletes the app's data.** Other install failures
+do not trigger uninstallation.
 
 ```shell
 $ gadb install [apk_path]
 ```
+
+Flags:
+- `-s, --device [serial]`: Install to a specific device
+- `--full-install`: Disable delta installation
+- `--no-timeout`: Disable the normal five-minute install timeout
+- `-y, --yes`: Confirm downgrade recovery without prompting
+- `-v, --verbose`: Show detailed failure output
+
+```shell
+gadb install app-debug.apk
+gadb install -s emulator-5554 --full-install app-debug.apk
+```
+
+### input
+
+Use Android CLI to target UI elements by selectors, or ADB for coordinate input.
+Put GADB's device option before `semantic` or `coord`.
+
+```shell
+# Selector syntax and operation flags are forwarded to android input
+gadb input semantic tap 'text=Save'
+gadb input semantic text 'hello world' 'id=email,class=EditText'
+gadb input -s emulator-5554 semantic tap --help
+
+# Coordinate operations do not require Android CLI
+gadb input coord tap 200 400
+gadb input coord swipe 300 900 300 200
+gadb input coord text "hello world"
+gadb input coord keyevent 66
+```
+
+`gadb input semantic` requires Android CLI. `gadb input coord` supports `tap`,
+`swipe` (with an optional duration in milliseconds), `text`, and `keyevent`.
+Coordinate text converts spaces to `%s` and otherwise follows `adb shell input
+text` behavior. Key events take numeric Android keycodes.
+
+### layout
+
+Return the active UI hierarchy as JSON using `android layout`.
+
+```shell
+gadb layout --pretty
+gadb layout -s emulator-5554 --full --flat -o layout.json
+```
+
+Flags: `-s/--device`, `--full`, `--flat`, `--no-idle`, `--pretty`,
+and `-o/--output`. Output defaults to stdout. Requires Android CLI.
 
 ### init
 
@@ -267,6 +345,50 @@ $ gadb restart [package_name] [flags]
 
 Flags:
 - `-c, --clear`: Restart application and clear the application data
+
+### run
+
+Build, install, and launch using `android run`, with delta installation enabled by
+the backend's default. Pass an existing APK or a build reference. Use `start` to
+launch an already-installed app without building or installing it.
+
+```shell
+gadb run app-debug.apk
+gadb run :app
+gadb run :app -- --offline
+gadb run --help
+```
+
+Requires Android CLI. Backend flags, such as `--device`, are forwarded unchanged.
+
+### profiler
+
+Capture system traces or JVM heap dumps, or manage profiling sessions through
+`android profiler`.
+
+```shell
+gadb profiler --help
+gadb profiler systemtrace --help
+gadb profiler heapdump capture --help
+gadb profiler session list
+```
+
+Requires Android CLI. Subcommands and flags are forwarded unchanged.
+
+### screenshot
+
+Capture a PNG using `adb exec-out screencap -p`. Use `--annotate` to label UI
+elements using Android CLI instead. Output defaults to PNG bytes on stdout.
+
+```shell
+gadb screenshot -o screen.png
+gadb screenshot -s emulator-5554 > screen.png
+gadb screenshot --annotate -o annotated.png
+```
+
+Flags: `-s/--device`, `-o/--output`, and `--annotate`. File output is staged so a
+failed capture does not overwrite an existing screenshot. Only annotated captures
+require Android CLI.
 
 ### settings
 
